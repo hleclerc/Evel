@@ -1,0 +1,8 @@
+ext
+node_modules
+.directory
+.vscode
+Evel.config
+Evel.creator*
+Evel.files
+Evel.includes
