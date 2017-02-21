@@ -233,6 +233,9 @@ void UdpConnectionDTLS::flush_out_bio() {
             if ( read > 0 )
                 send_raw( (const char **)&ciphered_output, read, true );
             break;
+        case SSL_ERROR_WANT_READ:
+            ucf->add_timeout( this, 1.0 );
+            return;
         case SSL_ERROR_SYSCALL:
             if ( errno == EINTR )
                 continue;

@@ -8,7 +8,7 @@ using namespace Evel;
 
 TEST( Udp, DTLS_rdy_send ) {
     SslCtx ssl_ctx_server( SslCtx::Method::DTLSv1, "test/cert.pem", "test/key.pem" );
-    SslCtx ssl_ctx_client( SslCtx::Method::DTLSv1, true );
+    SslCtx ssl_ctx_client( SslCtx::Method::DTLSv1, false );
     int nb_closed = 0;
     std::string res;
     EvLoop el;
@@ -69,57 +69,57 @@ TEST( Udp, DTLS_rdy_send ) {
     EXPECT_EQ( res, "smurf" );
 }
 
-// TEST( Udp, DTLS_imm_send ) {
-//     SslCtx ssl_ctx_server( SslCtx::Method::DTLSv1, "test/cert.pem", "test/key.pem" );
-//     SslCtx ssl_ctx_client( SslCtx::Method::DTLSv1 );
-//     int nb_closed = 0;
-//     std::string res;
-//     EvLoop el;
+ TEST( Udp, DTLS_imm_send ) {
+     SslCtx ssl_ctx_server( SslCtx::Method::DTLSv1, "test/cert.pem", "test/key.pem" );
+     SslCtx ssl_ctx_client( SslCtx::Method::DTLSv1, false );
+     int nb_closed = 0;
+     std::string res;
+     EvLoop el;
 
-//     // instantiation and registering of the server socket
-//     auto *sock_server = new UdpConnectionFactory_WF;
-//     sock_server->f_factory = [&res,&nb_closed,&ssl_ctx_server]( UdpConnectionFactory *ucf, const InetAddress &src ) {
-//         auto *conn = new UdpConnectionDTLS_WF( ssl_ctx_server, true, ucf, src );
-//         conn->f_parse = [&res]( UdpConnectionDTLS_WF *conn, char **data, ssize_t size ) {
-//             res.append( *data, size );
-//             conn->close();
-//         };
-//         conn->f_on_close = [&nb_closed]( UdpConnectionDTLS_WF *conn ) {
-//             conn->ucf->close();
-//             nb_closed += 10;
-//         };
-//         return conn;
-//     };
-//     sock_server->bind( 8749 );
-//     el << sock_server;
+     // instantiation and registering of the server socket
+     auto *sock_server = new UdpConnectionFactory_WF;
+     sock_server->f_factory = [&res,&nb_closed,&ssl_ctx_server]( UdpConnectionFactory *ucf, const InetAddress &src ) {
+         auto *conn = new UdpConnectionDTLS_WF( ssl_ctx_server, true, ucf, src );
+         conn->f_parse = [&res]( UdpConnectionDTLS_WF *conn, char **data, ssize_t size ) {
+             res.append( *data, size );
+             conn->close();
+         };
+         conn->f_on_close = [&nb_closed]( UdpConnectionDTLS_WF *conn ) {
+             conn->ucf->close();
+             nb_closed += 10;
+         };
+         return conn;
+     };
+     sock_server->bind( 8749 );
+     el << sock_server;
 
-//     // creation of basic DTLS client connections
-//     auto fact_client = [&nb_closed,&ssl_ctx_client]( UdpConnectionFactory *ucf, const InetAddress &src ) {
-//         UdpConnectionDTLS_WF *conn = new UdpConnectionDTLS_WF( ssl_ctx_client, false, ucf, src );
-//         conn->f_on_close = [&nb_closed]( UdpConnectionDTLS_WF *conn ) {
-//             ++nb_closed;
-//         };
-//         return conn;
-//     };
+     // creation of basic DTLS client connections
+     auto fact_client = [&nb_closed,&ssl_ctx_client]( UdpConnectionFactory *ucf, const InetAddress &src ) {
+         UdpConnectionDTLS_WF *conn = new UdpConnectionDTLS_WF( ssl_ctx_client, false, ucf, src );
+         conn->f_on_close = [&nb_closed]( UdpConnectionDTLS_WF *conn ) {
+             ++nb_closed;
+         };
+         return conn;
+     };
 
-//     // second client, using send directly (=> use of a buffer)
-//     auto *sock_client = new UdpConnectionFactory_WF( fact_client );
-//     sock_client->send( { "127.0.0.1", 8749 }, "smurf" );
-//     sock_client->close(); // => check inp and handshake before del
-//     el << sock_client;
+     // second client, using send directly (=> use of a buffer)
+     auto *sock_client = new UdpConnectionFactory_WF( fact_client );
+     sock_client->send( { "127.0.0.1", 8749 }, "smurf" );
+     sock_client->close(); // => check inp and handshake before del
+     el << sock_client;
 
-//     // check (false => do no block the loop)
-//     auto *timer = new Timer_WF( 2.0, false );
-//     timer->f_timeout = [&]( Timer_WF *, unsigned ) {
-//         ADD_FAILURE() << "Timeout"; return el.stop();
-//         el.stop();
-//     };
-//     el << timer;
+     // check (false => do no block the loop)
+     auto *timer = new Timer_WF( 2.0, false );
+     timer->f_timeout = [&]( Timer_WF *, unsigned ) {
+         ADD_FAILURE() << "Timeout"; return el.stop();
+         el.stop();
+     };
+     el << timer;
 
-//     el.run();
+     el.run();
 
-//     delete timer;
-//     EXPECT_EQ( nb_closed, 11 );
-//     EXPECT_EQ( res, "smurf" );
-// }
+     delete timer;
+     EXPECT_EQ( nb_closed, 11 );
+     EXPECT_EQ( res, "smurf" );
+ }
 
