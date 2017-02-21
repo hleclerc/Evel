@@ -116,14 +116,14 @@ struct _ExpIndexedList<T,GID,sa,0,pm,of> {
         lst = item;
     }
 
-    void shift( std::function<void(T *item)> f, size_t offset ) {
+    void shift( std::function<void(T *item)> f, size_t glob_offset ) {
         T *&lst = sub_lists[ 0 ];
 
         for( T *ptr = lst; ptr; ) {
             T *item = ptr;
             ptr = gid( ptr ).next;
 
-            if ( gid( item ).offset < offset + pm ) {
+            if ( gid( item ).offset < glob_offset + pm ) {
                 // remove item
                 gid( item ).lst = 0;
                 if ( gid( item ).prev )
@@ -190,11 +190,11 @@ public:
         list.write_to_stream( os );
     }
 
-    void add( T *item, size_t offset ) {
+    void add( T *item, size_t index ) {
         if ( gid( item ).lst )
             return;
-        list.add( item, offset >= this->offset ? offset - this->offset : 0 );
-        gid( item ).offset = offset;
+        gid( item ).offset = offset + index;
+        list.add( item, index );
     }
 
     void rem( T *item ) {

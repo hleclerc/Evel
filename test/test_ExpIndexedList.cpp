@@ -10,7 +10,7 @@ struct Foo {
     }
 };
 
-TEST( _ExpIndexedList, basic_operations ) {
+TEST( ExpIndexedList, basic_operations ) {
     ExpIndexedList<Foo,GetExpIndexedItemData,4,3> el;
     // of=0 of=3 of=9 of=21 of=45 of=93
     std::map<Foo **,int> nm;
@@ -47,7 +47,7 @@ TEST( _ExpIndexedList, basic_operations ) {
    }
 }
 
-TEST( _ExpIndexedList, rem ) {
+TEST( ExpIndexedList, rem ) {
     ExpIndexedList<Foo,GetExpIndexedItemData,4,3> el;
     constexpr int n = 150;
     Foo f[ n ] = {};

@@ -1,6 +1,10 @@
 #pragma once
 
+#include "ExpIndexedList.h"
+
 namespace Evel {
+
+class TimeoutsTimer;
 class WaitOut;
 class EvLoop;
 
@@ -25,6 +29,8 @@ public:
 
 
 protected:
+    using TimeoutData = ExpIndexedItemData<Event>;
+    friend class     TimeoutsTimer;
     friend class     WaitOut;
     friend class     EvLoop;
 
@@ -35,6 +41,7 @@ protected:
     virtual void     on_inp      ();            ///< called when input data. returns true if we want more input
     virtual void     on_out      ();            ///< called when ready for output. returns true if we want more output
     virtual void     on_rdy      ();            ///< called when connection/event is ready
+    virtual void     on_timeout  ();            ///<
     virtual void     on_rd_hup   ();            ///< gracefully ended connection (but we try to play with it again)
     virtual void     on_hup      ();            ///< not so gracefully ended connection
     virtual void     work        ();            ///< called when "work to do" (@see reg_work, ...)
@@ -42,12 +49,13 @@ protected:
     void             __on_rdy    ();            ///< called after installation of this in the event loop
     virtual bool     need_wait   () const;      ///< true if ev_loop has to wait for `this` (to return)
     virtual bool     may_have_out() const;      ///< may have output data (to know if a SIOCOUTQ test is useful)
-    virtual bool     out_are_sent() const = 0;  ///<
+    virtual bool     out_are_sent() const;      ///<
 
     // attributes
     Event           *next_wait_out;             ///< used in CheckSent (protected by EvLoop::mutex)
     Event           *next_work;                 ///< work to do
     Event           *next_del;                  ///<
+    TimeoutData      timeout_data;
     bool             del_on_install;            ///<
     bool             work_on_install;           ///<
     bool             want_close_fd;             ///<

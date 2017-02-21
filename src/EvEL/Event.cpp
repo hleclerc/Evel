@@ -112,6 +112,10 @@ void Event::__on_rdy() {
 void Event::on_rdy() {
 }
 
+void Event::on_timeout() {
+    close_fd();
+}
+
 void Event::work() {
 }
 
@@ -120,6 +124,10 @@ bool Event::need_wait() const {
 }
 
 bool Event::may_have_out() const {
+    return true;
+}
+
+bool Event::out_are_sent() const {
     return true;
 }
 

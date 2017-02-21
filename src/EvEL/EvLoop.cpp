@@ -1,3 +1,4 @@
+#include "TimeoutsTimer.h"
 #include "PostFunc.h"
 #include "WaitOut.h"
 
@@ -17,6 +18,7 @@ EvLoop::EvLoop() {
 
     // default values
     nb_waiting_events = 0;
+    timeouts_timer    = 0;
     wait_out_timer    = 0;
     ret               = 0;
 }
@@ -128,6 +130,13 @@ EvLoop &EvLoop::operator>>( Event *ev ) {
 
 void EvLoop::add_work( Event *ev ) {
     work_list.push_back( ev );
+}
+
+void EvLoop::add_timeout( Event *ev, double delay ) {
+    if ( ! timeouts_timer )
+        *this << ( timeouts_timer = new TimeoutsTimer( 0.125 ) );
+    timeout_list.add( ev, delay / 0.125 );
+    ev->ev_loop = this;
 }
 
 void EvLoop::log( const char *msg, const char *cmp ) {
