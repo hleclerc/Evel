@@ -1,4 +1,4 @@
-#include "FileDescriptor.h"
+#include "System/SocketUtil.h"
 #include "EvLoop.h"
 #include "Signal.h"
 
@@ -24,20 +24,26 @@ static int make_signal_fd( const int *sigs ) {
     }
 
     // get a (non blocking) file descriptor
-    int fd = signalfd( -1, &mask, 0 );
-    if ( fd < 0 )
-        perror( "signalfd" );
-    if ( set_non_blocking( fd ) < 0 ) {
-        perror( "non blocking signalfd" );
-        close( fd );
-        return -1;
-    }
+    while ( true ) {
+        int fd = signalfd( -1, &mask, 0 );
+        if ( fd < 0 ) {
+            if ( errno == EINTR )
+                continue;
+            perror( "signalfd" );
+            return -1;
+        }
+        if ( set_non_block( fd ) < 0 ) {
+            perror( "non blocking signalfd" );
+            close( fd );
+            return -1;
+        }
 
-    return fd;
+        return fd;
+    }
 }
 
 
-Signal::Signal( const int *sigs ) : Event( make_signal_fd( sigs ) ) {
+Signal::Signal( const int *sigs, bool need_wait ) : Event( make_signal_fd( sigs ), need_wait ) {
 }
 
 void Signal::on_inp() {
@@ -72,10 +78,6 @@ void Signal::on_inp() {
 
 bool Signal::out_are_sent() const {
     return true;
-}
-
-bool Signal::need_wait() const {
-    return false;
 }
 
 bool Signal::may_have_out() const {

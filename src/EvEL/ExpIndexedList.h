@@ -7,9 +7,27 @@
 namespace Evel {
 
 /// @see ExpIndexedList
-template<class T>
+template<class T,class GID>
 struct ExpIndexedItemData {
     ExpIndexedItemData() : lst( nullptr ) {
+    }
+    ~ExpIndexedItemData() {
+        if ( lst ) {
+            GID gid;
+
+            if ( prev )
+                gid( prev ).next = next;
+            else
+                *lst = next;
+
+            if ( next )
+                gid( next ).prev = prev;
+
+            lst = 0;
+        }
+    }
+    operator bool() const {
+        return lst;
     }
 
     T    **lst;
@@ -21,11 +39,11 @@ struct ExpIndexedItemData {
 /// #see ExpIndexedList
 struct GetExpIndexedItemData {
     template<class T>
-    ExpIndexedItemData<T> &operator()( T *item ) const {
+    auto &operator()( T *item ) const {
         return item->exp_indexed_item_data;
     }
     template<class T>
-    const ExpIndexedItemData<T> &operator()( const T *item ) const {
+    auto &operator()( const T *item ) const {
         return item->exp_indexed_item_data;
     }
 };
@@ -78,7 +96,15 @@ struct _ExpIndexedList {
             f( item );
         }
         lst = 0;
-   }
+    }
+
+    size_t size() const {
+        size_t res = 0;
+        for( size_t i = 0; i < sa; ++i )
+            for( const T *ptr = sub_lists[ i ]; ptr; ptr = gid( ptr ).next )
+                ++res;
+        return res + next.size();
+    }
 
     void _add_loc( T *item, size_t index ) {
         T *&lst = sub_lists[ ( cur_list + index / pm ) % sa ];
@@ -137,6 +163,13 @@ struct _ExpIndexedList<T,GID,sa,0,pm,of> {
                 f( item );
             }
         }
+    }
+
+    size_t size() const {
+        size_t res = 0;
+        for( const T *ptr = sub_lists[ 0 ]; ptr; ptr = gid( ptr ).next )
+            ++res;
+        return res;
     }
 
     T    *sub_lists[ 0 ];
@@ -212,6 +245,10 @@ public:
 
     void shift( std::function<void(T *item)> f ) {
         list.shift( f, offset++ );
+    }
+
+    size_t size() const {
+        return list.size();
     }
 
     size_t offset;

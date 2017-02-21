@@ -23,9 +23,6 @@ public:
 protected:
     virtual void     on_rdy    () override;
     virtual void     connection( int fd, const InetAddress &addr ) override;
-    virtual bool     need_wait () const override;
-
-    bool             _need_wait;
 };
 
 

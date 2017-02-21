@@ -8,11 +8,10 @@ namespace Evel {
 */
 class Signal : public Event {
 public:
-    Signal( const int *sigs );
+    Signal( const int *sigs, bool need_wait = false );
 
 protected:
     virtual void signal      ( int s ) = 0; ///< has to return true to continue watching for signal. To stop the program, one can use ev_loop->stop()
-    virtual bool need_wait   () const override; ///< true if ev_loop has to wait for `this` (to return)
 
 private:
     virtual bool may_have_out() const override;

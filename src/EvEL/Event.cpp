@@ -10,7 +10,7 @@
 
 namespace Evel {
 
-Event::Event( int fd ) : fd( fd ), ev_loop( 0 ) {
+Event::Event( int fd, bool need_wait ) : fd( fd ), need_wait( need_wait ) {
     next_wait_out   = 0;
     next_work       = 0;
     next_del        = 0;
@@ -20,7 +20,7 @@ Event::Event( int fd ) : fd( fd ), ev_loop( 0 ) {
     has_error       = 0;
 }
 
-Event::Event( VtableOnly vo ) {
+Event::Event( VtableOnly vo ) : TimeoutEvent( vo ) {
 }
 
 Event::~Event() {
@@ -112,15 +112,14 @@ void Event::__on_rdy() {
 void Event::on_rdy() {
 }
 
+void Event::on_install() {
+}
+
 void Event::on_timeout() {
     close_fd();
 }
 
 void Event::work() {
-}
-
-bool Event::need_wait() const {
-    return true;
 }
 
 bool Event::may_have_out() const {

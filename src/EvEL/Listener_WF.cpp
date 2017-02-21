@@ -2,7 +2,7 @@
 
 namespace Evel {
 
-Listener_WF::Listener_WF( unsigned port, bool need_wait ) : Listener( port ), _need_wait( need_wait ) {
+Listener_WF::Listener_WF( unsigned port, bool need_wait ) : Listener( port, need_wait ) {
 
 }
 
@@ -16,10 +16,6 @@ void Listener_WF::on_rdy() {
 
 void Listener_WF::connection( int fd, const InetAddress &addr ) {
     if ( f_connection ) f_connection( this, fd, addr );
-}
-
-bool Listener_WF::need_wait() const {
-    return _need_wait;
 }
 
 } // namespace Evel

@@ -19,11 +19,13 @@ public:
     TF_parse              f_parse;
     TF_on_rdy             f_on_rdy;
     TF_on_close           f_on_close;
+    double                v_timeout_read;
 
 protected:
     virtual bool          wait_for_inp_at_beg() const; ///< true if completed at least after one input
     virtual void          parse              ( char **data, size_t size );
-    virtual void          on_rdy                (); ///< called when the connection is up and running
+    virtual void          on_rdy             (); ///< called when the connection is up and running
+    virtual double        timeout_read       () const; ///< nb seconds to wait before deleting this if no answer
 };
 
 } // namespace Evel

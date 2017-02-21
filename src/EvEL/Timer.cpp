@@ -1,5 +1,5 @@
 #include "Containers/TypeConfig.h"
-#include "FileDescriptor.h"
+#include "System/SocketUtil.h"
 #include "Timer.h"
 
 #include <sys/timerfd.h>
@@ -13,13 +13,9 @@
 
 namespace Evel {
 
-Timer::Timer( double delay, double freq ) : Event( make_timer_fd( delay, freq ? freq : delay ) ) {
-}
+namespace {
 
-Timer::Timer( double freq ) : Timer( freq, freq ) {
-}
-
-int Timer::make_timer_fd( double delay, double freq ) {
+int make_timer_fd( double delay, double freq ) {
     timespec now;
     if ( clock_gettime( CLOCK_REALTIME, &now ) == -1 ) {
         perror( "clock_gettime" );
@@ -33,7 +29,7 @@ int Timer::make_timer_fd( double delay, double freq ) {
         return fd;
     }
 
-    if ( set_non_blocking( fd ) == -1 ) {
+    if ( set_non_block( fd ) == -1 ) {
         perror( "non blocking timer fd" );
         ::close( fd );
         return -1;
@@ -56,6 +52,14 @@ int Timer::make_timer_fd( double delay, double freq ) {
     }
 
     return fd;
+}
+
+} // namespace
+
+Timer::Timer( double delay, double freq, bool need_wait ) : Event( make_timer_fd( delay, freq ? freq : delay ), need_wait ) {
+}
+
+Timer::Timer( double freq, bool need_wait ) : Timer( freq, freq, need_wait ) {
 }
 
 bool Timer::may_have_out() const {

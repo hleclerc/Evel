@@ -25,7 +25,9 @@ public:
     EvLoop          &operator>>      ( Event *ev_obj );                        ///< suppression of an event object NOT thread safe
 
     void             add_work        ( Event *ev_obj );                        ///< ev_obj->work will be called in the "work" part of the event loop
-    void             add_timeout    ( Event *ev_obj, double delay );          ///< (if not suppressed from the list) ev_obj->on_timeout() will be called when delay expires
+
+    void             add_timeout     ( TimeoutEvent *ev_obj, double delay );   ///< (if not suppressed from the list) ev_obj->on_timeout() will be called when delay expires
+    void             rem_timeout     ( TimeoutEvent *ev_obj );
 
     virtual void     log             ( const char *msg, const char *cmp = 0 ); ///< method that may be surdefined for logging
     virtual void     err             ( const char *msg, const char *cmp = 0 ); ///< method that may be surdefined for error logging
@@ -34,11 +36,7 @@ protected:
     struct NO { Event *&operator()( Event *item ) const { return item->next_wait_out; } };
     struct NW { Event *&operator()( Event *item ) const { return item->next_work;     } };
     struct ND { Event *&operator()( Event *item ) const { return item->next_del;      } };
-    struct GetTimeoutData {
-        const ExpIndexedItemData<Event> &operator()( const Event *item ) const { return item->timeout_data; }
-        ExpIndexedItemData<Event> &operator()( Event *item ) const { return item->timeout_data; }
-    };
-    using TimeoutList = ExpIndexedList<Event,GetTimeoutData,64,3>; ///< shifted every 0.125s => ~9h of indexed events
+    using TimeoutList = ExpIndexedList<TimeoutEvent,TimeoutEvent::GetTimeoutData,64,3>; ///< shifted every 0.125s => ~9h of indexed events
     friend class TimeoutsTimer;
     friend class WaitOut;
     friend class Event;
@@ -53,6 +51,7 @@ protected:
     CiList<Event,NO> wait_out_list;                                            ///< event with fd that still have stuff to flush (before closing the fd)
     CiList<Event,NW> work_list;                                                ///< event that have work to do
     CiList<Event,ND> del_list;                                                 ///< event that have have to be deleted
+public:
     std::atomic<int> nb_waiting_events;                                        ///<
     int              event_fd;                                                 ///< for epoll
     int              ret;                                                      ///< value run() will have to return

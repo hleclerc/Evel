@@ -8,7 +8,7 @@ using namespace Evel;
 
 TEST( Udp, DTLS_rdy_send ) {
     SslCtx ssl_ctx_server( SslCtx::Method::DTLSv1, "test/cert.pem", "test/key.pem" );
-    SslCtx ssl_ctx_client( SslCtx::Method::DTLSv1, false );
+    SslCtx ssl_ctx_client( SslCtx::Method::DTLSv1, true );
     int nb_closed = 0;
     std::string res;
     EvLoop el;
@@ -17,30 +17,32 @@ TEST( Udp, DTLS_rdy_send ) {
     auto *sock_server = new UdpConnectionFactory_WF;
     sock_server->f_factory = [&]( UdpConnectionFactory *ucf, const InetAddress &src ) {
         auto *conn = new UdpConnectionDTLS_WF( ssl_ctx_server, true, ucf, src );
-        I( "create conn server" );
+        conn->v_timeout_read = 1.0;
         conn->f_parse = [&]( UdpConnectionDTLS_WF *conn, char **data, ssize_t size ) {
             res.append( *data, size );
             conn->close();
         };
         conn->f_on_close = [&]( UdpConnectionDTLS_WF *conn ) {
-            I( "close conn server" );
             conn->ucf->close();
             nb_closed += 10;
         };
         return conn;
     };
+    //    sock_server->f_on_close = []( UdpConnectionFactory_WF * ) {
+    //        I( "close sock server" );
+    //    };
     sock_server->bind( 8749 );
     el << sock_server;
 
     // creation of DTLS "rdy" client connections
     auto fact_client = [&]( UdpConnectionFactory *ucf, const InetAddress &src ) {
         UdpConnectionDTLS_WF *conn = new UdpConnectionDTLS_WF( ssl_ctx_client, false, ucf, src );
+        conn->v_timeout_read = 1.0;
         conn->f_on_rdy = []( UdpConnectionDTLS_WF *conn ) {
             conn->send( "smurf" );
             conn->close();
         };
         conn->f_on_close = [&]( UdpConnectionDTLS_WF *conn ) {
-            I( "close conn client" );
             conn->ucf->close();
             ++nb_closed;
         };
@@ -50,16 +52,14 @@ TEST( Udp, DTLS_rdy_send ) {
     // first client, using rdy()
     auto *sock_client = new UdpConnectionFactory_WF( fact_client );
     sock_client->connection( { "127.0.0.1", 8749 } );
-    sock_client->f_on_close = []( UdpConnectionFactory_WF * ) {
-        I( "close sock client" );
-    };
+    //    sock_client->f_on_close = []( UdpConnectionFactory_WF * ) {
+    //    };
     el << sock_client;
 
     // check (false => do no block the loop)
-    auto *timer = new Timer_WF( 2.0, false );
-    timer->f_timeout = [&]( Timer_WF *, unsigned ) {
-        ADD_FAILURE() << "Timeout"; return el.stop();
-    };
+    auto *timer = new Timer_WF( 5.0, [&]( Timer_WF *, unsigned ) {
+        ADD_FAILURE() << "=> timeout"; return el.stop();
+    }, false );
     el << timer;
 
     el.run();

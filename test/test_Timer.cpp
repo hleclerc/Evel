@@ -15,17 +15,11 @@ using namespace Evel;
 //    EXPECT_EQ( cpt, 5 );
 //}
 
-struct MyTimeoutEvent : public Event {
+struct MyTimeoutEvent : public TimeoutEvent {
     virtual void on_timeout() override {
         ev_loop->add_timeout( this, 1.0 );
         I( "timeout" );
         ++cpt;
-    }
-    virtual bool need_wait() const override {
-        return false;
-    }
-    virtual bool may_have_out() const override {
-        return false;
     }
     int cpt = 0;
 };

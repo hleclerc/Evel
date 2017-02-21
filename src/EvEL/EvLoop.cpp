@@ -27,6 +27,7 @@ EvLoop::~EvLoop() {
     if ( event_fd >= 0 )
         close( event_fd );
     delete wait_out_timer;
+    delete timeouts_timer;
 }
 
 int EvLoop::run() {
@@ -104,7 +105,7 @@ EvLoop &EvLoop::operator<<( Event *ev ) {
         return *this;
     ev->ev_loop = this;
 
-    if ( ev->need_wait() )
+    if ( ev->need_wait )
         ++nb_waiting_events;
 
     epoll_event ee;
@@ -114,6 +115,7 @@ EvLoop &EvLoop::operator<<( Event *ev ) {
     if ( epoll_ctl( event_fd, EPOLL_CTL_ADD, ev->fd, &ee ) == -1 )
         err( "epoll_ctl add: ", strerror( errno ) );
 
+    ev->on_install();
     ev->__on_rdy();
     return *this;
 }
@@ -122,7 +124,7 @@ EvLoop &EvLoop::operator>>( Event *ev ) {
     if ( event_fd >= 0 ) {
         if ( epoll_ctl( event_fd, EPOLL_CTL_DEL, ev->fd, 0 ) == -1 )
             err( "epoll_ctl del: ", strerror( errno ) );
-        if ( ev->need_wait() )
+        if ( ev->need_wait )
             --nb_waiting_events;
     }
     return *this;
@@ -132,11 +134,15 @@ void EvLoop::add_work( Event *ev ) {
     work_list.push_back( ev );
 }
 
-void EvLoop::add_timeout( Event *ev, double delay ) {
+void EvLoop::add_timeout( TimeoutEvent *ev, double delay ) {
     if ( ! timeouts_timer )
         *this << ( timeouts_timer = new TimeoutsTimer( 0.125 ) );
     timeout_list.add( ev, delay / 0.125 );
     ev->ev_loop = this;
+}
+
+void EvLoop::rem_timeout( TimeoutEvent *ev_obj ) {
+    timeout_list.rem( ev_obj );
 }
 
 void EvLoop::log( const char *msg, const char *cmp ) {

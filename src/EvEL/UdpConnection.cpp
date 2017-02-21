@@ -49,6 +49,10 @@ bool UdpConnection::send_avail_at_beg() const {
     return true;
 }
 
+void UdpConnection::on_timeout() {
+    del();
+}
+
 void UdpConnection::sys_error( const char *ctx ) {
     perror( ctx ? ctx : "sys_error" );
     del();

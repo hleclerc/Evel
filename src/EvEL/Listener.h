@@ -11,7 +11,7 @@ namespace Evel {
 */
 class Listener : public Event {
 public:
-    Listener( unsigned port ); ///<
+    Listener( unsigned port, bool need_wait = true ); ///<
     Listener( VtableOnly );
 
 protected:

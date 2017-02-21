@@ -4,10 +4,11 @@
 using namespace Evel;
 
 struct Foo {
-    ExpIndexedItemData<Foo> exp_indexed_item_data;
     void write_to_stream( std::ostream &os ) const {
         os << exp_indexed_item_data.offset;
     }
+
+    ExpIndexedItemData<Foo,GetExpIndexedItemData> exp_indexed_item_data;
 };
 
 TEST( ExpIndexedList, basic_operations ) {
@@ -74,4 +75,18 @@ TEST( ExpIndexedList, rem ) {
        EXPECT_EQ( a.size(), 1 );
        EXPECT_EQ( a[ 0 ], i - 1 );
    }
+}
+
+TEST( ExpIndexedList, destroy ) {
+    ExpIndexedList<Foo,GetExpIndexedItemData,4,3> el;
+    {
+        constexpr int n = 10;
+        Foo f[ n ] = {};
+        for( unsigned i = 0; i < n; ++i )
+            el.add( f + i, i );
+
+        EXPECT_EQ( el.size(), 10 );
+    }
+
+    EXPECT_EQ( el.size(), 0 );
 }

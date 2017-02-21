@@ -6,7 +6,7 @@
 
 namespace Evel {
 
-Listener::Listener( unsigned port ) {
+Listener::Listener( unsigned port, bool need_wait ) : Event( -1, need_wait ) {
     // create an ipv6 socket
     while ( true ) {
         fd = socket( AF_INET6, SOCK_NONBLOCK | SOCK_STREAM, 0 );

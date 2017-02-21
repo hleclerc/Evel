@@ -30,6 +30,7 @@ UdpConnectionDTLS::UdpConnectionDTLS( SSL_CTX *ctx, bool server, UdpConnectionFa
 
             switch ( SSL_get_error( ssl, ruff ) ) {
             case SSL_ERROR_WANT_READ:
+                ucf->add_timeout( this, 1.0 );
             case SSL_ERROR_NONE:
                 flush_out_bio();
                 break;
@@ -65,12 +66,14 @@ void UdpConnectionDTLS::send( const char **data, size_t size, bool allow_transfe
         return;
 
     while ( true ) {
-        switch ( int err = SSL_get_error( ssl, SSL_write( ssl, *data, size ) ) ) {
+        int err = SSL_get_error( ssl, SSL_write( ssl, *data, size ) );
+        switch ( err ) {
         case SSL_ERROR_NONE:
             flush_out_bio();
             break;
         case SSL_ERROR_WANT_READ:
             store( data, size, allow_transfer_ownership );
+            ucf->add_timeout( this, 1.0 );
             flush_out_bio();
             break;
         case SSL_ERROR_WANT_WRITE:
@@ -127,6 +130,7 @@ void UdpConnectionDTLS::flush_sends() {
 }
 
 void UdpConnectionDTLS::_parse( char **data, size_t size ) {
+    ucf->rem_timeout( this );
     if ( ! ssl )
         return;
     ssize_t sent = BIO_write( inp_bio, *data, size );
@@ -142,6 +146,7 @@ void UdpConnectionDTLS::_parse( char **data, size_t size ) {
                 flush_out_bio();
                 break;
             case SSL_ERROR_WANT_READ:
+                ucf->add_timeout( this, 1.0 );
                 flush_out_bio();
                 return;
             case SSL_ERROR_WANT_WRITE:
@@ -184,6 +189,7 @@ void UdpConnectionDTLS::_parse( char **data, size_t size ) {
                 return;
             break;
         case SSL_ERROR_WANT_READ:
+            ucf->add_timeout( this, 1.0 );
             flush_out_bio();
             return;
         case SSL_ERROR_WANT_WRITE:
@@ -204,6 +210,10 @@ void UdpConnectionDTLS::_parse( char **data, size_t size ) {
 void UdpConnectionDTLS::on_rdy() {
 }
 
+double UdpConnectionDTLS::timeout_read() const {
+    return 10.0;
+}
+
 void UdpConnectionDTLS::flush_out_bio() {
     if ( ! ssl )
         return;
@@ -218,8 +228,8 @@ void UdpConnectionDTLS::flush_out_bio() {
         int read = BIO_read( out_bio, ciphered_output, size );
 
         switch ( int err = SSL_get_error( ssl, read ) ) {
+        // send the content
         case SSL_ERROR_NONE:
-            // send the content
             if ( read > 0 )
                 send_raw( (const char **)&ciphered_output, read, true );
             break;
