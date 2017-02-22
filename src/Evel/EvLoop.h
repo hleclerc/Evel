@@ -21,8 +21,11 @@ public:
     int              run                  ();                                                      ///< Infinite loop, until this->stop() is called. return err code < 0 if pb. return ret_val (the value that is sent by this->stop()) if ok. wait_out_flushed is useful before exiting.
     bool             stop                 ( int ret_val = 0 );                                     ///< Procedure to be called to gracefully exit from run(). May be called e.g. during a callback. Return false for convenience
 
-    EvLoop          &operator<<           ( Event *ev_obj );                                       ///< add a event object that has to be watched. ev_obj may be deleted inside the loop if it says that everything is done with it. thread safe.
-    EvLoop          &operator>>           ( Event *ev_obj );                                       ///< suppression of an event object NOT thread safe
+    EvLoop          &add_event_obj        ( Event *ev_obj );                                       ///< add a event object that has to be watched. ev_obj may be deleted inside the loop if it says that everything is done with it. thread safe.
+    EvLoop          &rem_event_obj        ( Event *ev_obj );                                       ///< suppression of an event object NOT thread safe
+
+    EvLoop          &operator<<           ( Event *ev_obj );                                       ///< synonym for add_event_obj()
+    EvLoop          &operator>>           ( Event *ev_obj );                                       ///< synonym for rem_event_obj()
 
     void             add_work             ( Event *ev_obj );                                       ///< ev_obj->work will be called in the "work" part of the event loop
 

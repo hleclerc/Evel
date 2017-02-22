@@ -101,6 +101,14 @@ bool EvLoop::stop( int ret_val ) {
 }
 
 EvLoop &EvLoop::operator<<( Event *ev ) {
+    return add_event_obj( ev );
+}
+
+EvLoop &EvLoop::operator>>( Event *ev ) {
+    return rem_event_obj( ev );
+}
+
+EvLoop &EvLoop::add_event_obj( Event *ev ) {
     if ( ev->ev_loop || event_fd < 0 )
         return *this;
     ev->ev_loop = this;
@@ -120,7 +128,7 @@ EvLoop &EvLoop::operator<<( Event *ev ) {
     return *this;
 }
 
-EvLoop &EvLoop::operator>>( Event *ev ) {
+EvLoop &EvLoop::rem_event_obj( Event *ev ) {
     if ( event_fd >= 0 ) {
         if ( ev->fd >= 0 && epoll_ctl( event_fd, EPOLL_CTL_DEL, ev->fd, 0 ) == -1 ) {
             err( "epoll_ctl del: ", strerror( errno ) );
