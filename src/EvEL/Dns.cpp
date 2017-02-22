@@ -32,34 +32,11 @@ public:
 };
 
 Dns::Dns( EvLoop *ev ) : cur_server( 0 ), req( 0 ), ev( ev ? ev : gev.ptr() ) {
-    // read entries in /etc/resolv.conf
-    std::ifstream f( "/etc/resolv.conf" );
-    if ( ! f ) {
-        ev->err( "Pb opening /etc/resolv.conf", strerror( errno ) );
-        abort();
-    }
+    timeout     = 5.0;
+    resolv_conf = "/etc/resolv.conf";
+    used_resolv = false;
+    socket      = new DnsClientSocket( this );
 
-    std::string line;
-    while ( std::getline( f, line ) ) {
-        const char *d = line.data(), *e = d + line.size();
-        while ( d < e and is_a_space( *d ) )
-            ++d;
-        if ( d == e or *d == '#' or *d == ';' )
-            continue;
-        if ( e - d > 11 && strncmp( d, "nameserver ", 11 ) == 0 ) {
-            const char *b = d += 11;
-            while ( d < e && is_a_curl( *d ) )
-                ++d;
-            server_ips.emplace_back( std::string( b, d ), 53 );
-        }
-    }
-
-    if ( server_ips.empty() ) {
-        ev->err( "/etc/resolv.conf seems to be empty" );
-    }
-
-    // open a socket
-    socket = new DnsClientSocket( this );
     *this->ev << socket;
 }
 
@@ -94,21 +71,26 @@ void Dns::query( const std::string &addr, std::function<void (int, const std::ve
 
     // reg callback
     Wcb &wcb = waiting_reqs[ addr ];
+    ev->inc_nb_waiting_events();
     wcb.cbs.push_back( cb );
-    wcb.num = num_request;
+    wcb.name = addr;
+    wcb.num  = num_request;
+    wcb.dns  = this;
+
+    ev->add_timeout( &wcb, timeout );
 
     // header
     bs.write_be16( num_request ); // num_request
-    bs.write_byte( ( 1 << 0 ) +  // recursivity
-                   ( 0 << 1 ) +  // truncated msg
-                   ( 0 << 2 ) +  // authoritative answer
-                   ( 0 << 3 ) +  // type ( -> std request )
-                   ( 0 << 7 ) ); // answer ? )
-    bs.write_byte( 0x00 ); // !RA, Z=000, RCODE=NOERROR(0000)
-    bs.write_be16( 1 ); // QDCOUNT
-    bs.write_be16( 0 ); // ANCOUNT
-    bs.write_be16( 0 ); // NSCOUNT
-    bs.write_be16( 0 ); // ARCOUNT
+    bs.write_byte( ( 1 << 0 ) +   // recursivity
+                   ( 0 << 1 ) +   // truncated msg
+                   ( 0 << 2 ) +   // authoritative answer
+                   ( 0 << 3 ) +   // type ( -> std request )
+                   ( 0 << 7 ) );  // answer ? )
+    bs.write_byte( 0x00 );        // !RA, Z=000, RCODE=NOERROR(0000)
+    bs.write_be16( 1 );           // QDCOUNT
+    bs.write_be16( 0 );           // ANCOUNT
+    bs.write_be16( 0 );           // NSCOUNT
+    bs.write_be16( 0 );           // ARCOUNT
 
     // question
     for( const char *b = addr.c_str(), *e = b; ; ++e ) { // QNAME
@@ -128,7 +110,15 @@ void Dns::query( const std::string &addr, std::function<void (int, const std::ve
     bs.write_be16( 0x01 ); /* QCLASS (internet) */
 
     // send
-    if ( server_ips.empty() ) return cb( NO_RESOLV_ENTRY, {} );
+    if ( server_ips.empty() ) {
+        if ( ! used_resolv ) {
+            used_resolv = true;
+            read_resolv_conf();
+        }
+        if ( server_ips.empty() )
+            return cb( NO_RESOLV_ENTRY, {} );
+    }
+    // open a socket
     socket->send( server_ips[ 0 ], &req, cm.size(), true );
 }
 
@@ -218,6 +208,33 @@ std::string Dns::read_cname( BinStream<CmString> bs ) {
     return name;
 }
 
+void Dns::read_resolv_conf() {
+    // read entries in /etc/resolv.conf
+    std::ifstream f( "/etc/resolv.conf" );
+    if ( ! f ) {
+        ev->err( "Pb opening /etc/resolv.conf", strerror( errno ) );
+        abort();
+    }
+
+    std::string line;
+    while ( std::getline( f, line ) ) {
+        const char *d = line.data(), *e = d + line.size();
+        while ( d < e and is_a_space( *d ) )
+            ++d;
+        if ( d == e or *d == '#' or *d == ';' )
+            continue;
+        if ( e - d > 11 && strncmp( d, "nameserver ", 11 ) == 0 ) {
+            const char *b = d += 11;
+            while ( d < e && is_a_curl( *d ) )
+                ++d;
+            server_ips.emplace_back( std::string( b, d ), 53 );
+        }
+    }
+
+    if ( server_ips.empty() )
+        ev->err( resolv_conf + " seems to be empty" );
+}
+
 bool Dns::check_name( Entry *&entry, Wcb *&wcb, unsigned num_request, const std::string name ) {
     //
     if ( entry )
@@ -238,6 +255,16 @@ bool Dns::check_name( Entry *&entry, Wcb *&wcb, unsigned num_request, const std:
     entry = &cached_entries[ name ];
     entry->name = name;
     return true;
+}
+
+Dns::Wcb::~Wcb() {
+    dns->ev->dec_nb_waiting_events();
+}
+
+void Dns::Wcb::on_timeout() {
+    for( std::function<void( int err, const std::vector<InetAddress> &addr )> &f : cbs )
+        f( TIMEOUT, {} );
+    dns->waiting_reqs.erase( name );
 }
 
 } // namespace Evel

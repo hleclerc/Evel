@@ -67,10 +67,28 @@ void UdpSocket::on_inp() {
     while ( true ) {
         // try to read some data
         InetAddress src;
-        socklen_t src_sa_len = sizeof src.sa;
         if ( ! buffer )
             buffer = (char *)allocate( inp_buf_size );
-        ssize_t inp_len = recvfrom( fd, buffer, inp_buf_size, 0, (struct sockaddr *)&src.sa, &src_sa_len ); // MSG_WAITALL
+
+        //
+        //        struct iovec iov[ 1 ];
+        //        iov[ 0 ].iov_base = (void *)buffer;
+        //        iov[ 0 ].iov_len  = inp_buf_size;
+
+        //        struct msghdr message;
+        //        message.msg_name       = (sockaddr *)&src.sa; // res->ai_addr;
+        //        message.msg_namelen    = sizeof src.sa; // res->ai_addrlen;
+        //        message.msg_iov        = iov;
+        //        message.msg_iovlen     = 1;
+        //        message.msg_control    = 0;
+        //        message.msg_controllen = 0;
+        //        message.msg_flags      = 0;
+
+        //        ssize_t inp_len = recvmsg( fd, &message, MSG_DONTWAIT ); // MSG_WAITALL
+        //        P( inp_len, message.msg_flags, message.msg_flags, src );
+
+        socklen_t src_sa_len = sizeof src.sa;
+        ssize_t inp_len = recvfrom( fd, buffer, inp_buf_size, MSG_DONTWAIT, (struct sockaddr *)&src.sa, &src_sa_len ); // MSG_WAITALL
         if ( inp_len <= 0 ) {
             if ( errno == EINTR )
                 continue;

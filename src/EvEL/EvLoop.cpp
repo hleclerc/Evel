@@ -24,17 +24,17 @@ EvLoop::EvLoop() {
 }
 
 EvLoop::~EvLoop() {
-    if ( event_fd >= 0 )
-        close( event_fd );
     delete wait_out_timer;
     delete timeouts_timer;
+    if ( event_fd >= 0 )
+        close( event_fd );
 }
 
 int EvLoop::run() {
     if ( event_fd < 0 )
         return -1;
 
-    cnt     = true;
+    cnt = true;
 
     // loop
     const int max_events = 1024;
@@ -122,8 +122,10 @@ EvLoop &EvLoop::operator<<( Event *ev ) {
 
 EvLoop &EvLoop::operator>>( Event *ev ) {
     if ( event_fd >= 0 ) {
-        if ( epoll_ctl( event_fd, EPOLL_CTL_DEL, ev->fd, 0 ) == -1 )
+        if ( ev->fd >= 0 && epoll_ctl( event_fd, EPOLL_CTL_DEL, ev->fd, 0 ) == -1 ) {
             err( "epoll_ctl del: ", strerror( errno ) );
+            abort();
+        }
         if ( ev->need_wait )
             --nb_waiting_events;
     }
@@ -151,6 +153,14 @@ void EvLoop::log( const char *msg, const char *cmp ) {
 
 void EvLoop::err( const char *msg, const char *cmp ) {
     std::cerr << msg << ( cmp ? cmp : "" ) << std::endl;
+}
+
+void EvLoop::log( const std::string &msg, const std::string &cmp ) {
+    log( msg.c_str(), cmp.c_str() );
+}
+
+void EvLoop::err(const std::string &msg, const std::string &cmp) {
+    err( msg.c_str(), cmp.c_str() );
 }
 
 bool EvLoop::running() const {

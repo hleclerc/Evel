@@ -7,13 +7,17 @@ using namespace Evel;
 
 TEST( Dns, req ) {
     Dns dns;
-    dns.query( "www.google.com", []( int err, const std::vector<InetAddress> &addr ) {
-        P( addr );
-        gev->stop();
+    dns.timeout = 1.0;
+
+    bool has_addr = false;
+    dns.query( "www.google.com", [&]( int err, const std::vector<InetAddress> &addr ) {
+        has_addr = addr.size();
+        P( err, addr );
     } );
 
-    *gev << new Timer_WF( 1.0, []( Timer_WF *t, unsigned ) { I( "timer" ); t->close(); }, true );
+    *gev << new Timer_WF( 2.0, []( Timer_WF *t, unsigned ) { I( "timer" ); t->close(); }, false );
     gev->run();
-    // EXPECT_EQ( c_sig, 10 );
+
+    EXPECT_EQ( has_addr, true );
 }
 
