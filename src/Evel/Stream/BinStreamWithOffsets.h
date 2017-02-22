@@ -38,7 +38,7 @@ struct BinStreamWithOffsets : BinStream<TB> {
                 sizeof_rems[ i ] = sizeof( TO ) - this->size_needed_for( val );
 
                 // write the new val
-                CmQueue cm( ptr ); BinStream<CmQueue> bw( &cm ); bw << val;
+                CmQueue cm( ptr, ptr + 16 ); BinStream<CmQueue> bw( &cm ); bw << val;
             }
 
             // update the buffer, with updated offsets

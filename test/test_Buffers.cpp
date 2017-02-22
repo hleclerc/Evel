@@ -64,7 +64,7 @@ TEST( Buffers, bin_stream_cm ) {
     PI8  rdata[ 28 ];
 
     // bin writer
-    CmQueue os( rdata );
+    CmQueue os( rdata, rdata + sizeof rdata );
     BinStream<CmQueue> bw( &os );
     for( PI32 u : uvals )
         bw.write_unsigned( u );
