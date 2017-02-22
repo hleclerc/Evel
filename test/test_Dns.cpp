@@ -1,7 +1,7 @@
-#include "../src/EvEL/Timer_WF.h"
-#include "../src/EvEL/EvLoop.h"
-#include "../src/EvEL/Dns.h"
-#include "../src/EvEL/Gev.h"
+#include "../src/Evel/Timer_WF.h"
+#include "../src/Evel/EvLoop.h"
+#include "../src/Evel/Dns.h"
+#include "../src/Evel/Gev.h"
 #include <gtest/gtest.h>
 using namespace Evel;
 

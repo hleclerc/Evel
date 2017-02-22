@@ -1,8 +1,8 @@
-#include "../src/EvEL/UdpConnectionFactory_WF.h"
-#include "../src/EvEL/UdpConnectionDTLS_WF.h"
-#include "../src/EvEL/Timer_WF.h"
-#include "../src/EvEL/SslCtx.h"
-#include "../src/EvEL/EvLoop.h"
+#include "../src/Evel/UdpConnectionFactory_WF.h"
+#include "../src/Evel/UdpConnectionDTLS_WF.h"
+#include "../src/Evel/Timer_WF.h"
+#include "../src/Evel/SslCtx.h"
+#include "../src/Evel/EvLoop.h"
 #include <gtest/gtest.h>
 using namespace Evel;
 

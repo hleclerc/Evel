@@ -1,8 +1,8 @@
 //// nsmake global inc_path ..
 
-#include "../src/EvEL/Stream/BinStreamWithOffsets.h"
-#include "../src/EvEL/Stream/CbStringPtr.h"
-#include "../src/EvEL/Stream/TxtStream.h"
+#include "../src/Evel/Stream/BinStreamWithOffsets.h"
+#include "../src/Evel/Stream/CbStringPtr.h"
+#include "../src/Evel/Stream/TxtStream.h"
 #include <gtest/gtest.h>
 
 using namespace Evel;

@@ -1,6 +1,6 @@
-#include "../src/EvEL/Signal_WF.h"
-#include "../src/EvEL/Timer_WF.h"
-#include "../src/EvEL/EvLoop.h"
+#include "../src/Evel/Signal_WF.h"
+#include "../src/Evel/Timer_WF.h"
+#include "../src/Evel/EvLoop.h"
 #include <gtest/gtest.h>
 using namespace Evel;
 

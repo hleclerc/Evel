@@ -1,4 +1,4 @@
-#include "../src/EvEL/ExpIndexedList.h"
+#include "../src/Evel/ExpIndexedList.h"
 #include <gtest/gtest.h>
 #include <map>
 using namespace Evel;

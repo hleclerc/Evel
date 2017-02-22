@@ -1,4 +1,4 @@
-#include "../src/EvEL/CiList.h"
+#include "../src/Evel/CiList.h"
 #include <gtest/gtest.h>
 using namespace Evel;
 
