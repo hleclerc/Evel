@@ -5,6 +5,13 @@
 
 namespace Evel {
 
+InetAddress::InetAddress( const InetAddress &ia, unsigned port ) {
+    bzero( &sa, sizeof sa );
+    sa.sin6_family = AF_INET6;
+    sa.sin6_port = htons( port );
+    memcpy( &sa.sin6_addr, &ia.sa.sin6_addr, 16 );
+}
+
 InetAddress::InetAddress( std::string ip, unsigned port ) {
     if ( ip.find( ':' ) == std::string::npos )
         ip = "::ffff:" + ip;

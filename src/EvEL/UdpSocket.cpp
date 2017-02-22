@@ -5,7 +5,7 @@
 
 namespace Evel {
 
-UdpSocket::UdpSocket( unsigned inp_buf_size ) : Event( socket( AF_INET6, SOCK_NONBLOCK | SOCK_DGRAM, IPPROTO_UDP ) ), inp_buf_size( inp_buf_size ), buffer( 0 ) {
+UdpSocket::UdpSocket( unsigned inp_buf_size, bool need_wait ) : Event( socket( AF_INET6, SOCK_NONBLOCK | SOCK_DGRAM, IPPROTO_UDP ), need_wait ), inp_buf_size( inp_buf_size ), buffer( 0 ) {
 }
 
 UdpSocket::~UdpSocket() {
@@ -48,6 +48,10 @@ void UdpSocket::send( const InetAddress &dst, const char *data ) {
 
 void UdpSocket::send( const InetAddress &dst, const char *data, size_t size ) {
     send( dst, &data, size, false );
+}
+
+void UdpSocket::send( const InetAddress &dst, char **data, size_t size, bool allow_transfer_ownership ) {
+    send( dst, (const char **)data, size, allow_transfer_ownership );
 }
 
 void UdpSocket::send( const InetAddress &dst, const char **data, size_t size, bool allow_transfer_ownership ) {

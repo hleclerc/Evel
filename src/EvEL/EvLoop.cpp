@@ -34,7 +34,7 @@ int EvLoop::run() {
     if ( event_fd < 0 )
         return -1;
 
-    cnt = true;
+    cnt     = true;
 
     // loop
     const int max_events = 1024;
@@ -151,6 +151,10 @@ void EvLoop::log( const char *msg, const char *cmp ) {
 
 void EvLoop::err( const char *msg, const char *cmp ) {
     std::cerr << msg << ( cmp ? cmp : "" ) << std::endl;
+}
+
+bool EvLoop::running() const {
+    return cnt;
 }
 
 void EvLoop::check_wait_out() {

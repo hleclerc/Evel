@@ -125,7 +125,7 @@ struct BinStream {
         return *this;
     }
 
-    BinStream &write_be16( short unsigned val ) { // big endian (network order)
+    BinStream &write_be16( PI16 val ) { // big endian (network order)
         buf->write_byte( val >> 8 );
         buf->write_byte( val >> 0 );
         return *this;

@@ -31,6 +31,8 @@ public:
 
     virtual void     log             ( const char *msg, const char *cmp = 0 ); ///< method that may be surdefined for logging
     virtual void     err             ( const char *msg, const char *cmp = 0 ); ///< method that may be surdefined for error logging
+
+    bool             running         () const;
     
 protected:
     struct NO { Event *&operator()( Event *item ) const { return item->next_wait_out; } };

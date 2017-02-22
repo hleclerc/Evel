@@ -11,12 +11,13 @@ namespace Evel {
 */
 class UdpSocket : public Event {
 public:
-    UdpSocket( unsigned inp_buf_size = 2048 );
+    UdpSocket( unsigned inp_buf_size = 2048, bool need_wait = true );
     ~UdpSocket();
 
     void          bind            ( int port );
     void          send            ( const InetAddress &dst, const char *data );  ///< simplified version. data will be copied if send has actually to be postponed
     void          send            ( const InetAddress &dst, const char *data, size_t size ); ///< simplified version. data will be copied if send has actually to be postponed
+    void          send            ( const InetAddress &dst, char **data, size_t size, bool allow_transfer_ownership = true ); ///< if transfer_ownership is allowed, send may take ownership of *data, in which case, *data is changed to null and will be freed using free(). return value is relevant only if it's for a retry
     virtual void  send            ( const InetAddress &dst, const char **data, size_t size, bool allow_transfer_ownership = true ); ///< if transfer_ownership is allowed, send may take ownership of *data, in which case, *data is changed to null and will be freed using free(). return value is relevant only if it's for a retry
     unsigned      get_inp_buf_size() const { return inp_buf_size; }
 

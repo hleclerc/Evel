@@ -11,9 +11,10 @@ namespace Evel {
 */
 class InetAddress {
 public:
-    InetAddress( std::string ip, unsigned port ); // IPVx
-    InetAddress( const PI16 *ip, unsigned port ); // IPV6 only
-    InetAddress( const PI8  *ip, unsigned port ); // IPV4 only
+    InetAddress( const InetAddress &ia, unsigned port ); // same address, another port
+    InetAddress( std::string        ip, unsigned port ); // IPVx
+    InetAddress( const PI16        *ip, unsigned port ); // IPV6 only
+    InetAddress( const PI8         *ip, unsigned port ); // IPV4 only
     InetAddress();
 
     void         write_to_stream( std::ostream &os ) const;

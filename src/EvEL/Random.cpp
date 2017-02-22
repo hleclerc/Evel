@@ -1,5 +1,8 @@
 #include <openssl/rand.h>
+#include <iostream>
 #include "Random.h"
+
+//// nsmake lib_name crypto
 
 namespace Evel {
 

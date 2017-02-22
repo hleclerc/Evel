@@ -9,7 +9,7 @@
 namespace Evel {
 
 /**
-  To read or write data from reserved room in memory (data is not owned by CmQueue)
+  To read data from reserved room in memory (data is not owned by CmQueue)
 */
 class CmString {
 public:

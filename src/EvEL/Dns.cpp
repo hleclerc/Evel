@@ -1,8 +1,10 @@
-#include "DnsClientSocket.h"
+#include "UdpSocket.h"
 #include "Random.h"
 #include "EvLoop.h"
 #include "Dns.h"
 #include "Gev.h"
+#include <string.h>
+#include <fstream>
 
 namespace Evel {
 
@@ -21,11 +23,19 @@ bool is_a_curl( char c ) {
 
 }
 
-Dns::Dns( EvLoop *ev ) : cur_server( 0 ), ev( ev ? ev : gev.ptr() ) {
+///
+class DnsClientSocket : public UdpSocket {
+public:
+    DnsClientSocket( Dns *dns ) : UdpSocket( 2048, false ), dns( dns ) {}
+    virtual void parse( const InetAddress &src, char **data, unsigned size ) override { dns->ans( *data, size ); }
+    Dns *dns;
+};
+
+Dns::Dns( EvLoop *ev ) : cur_server( 0 ), req( 0 ), ev( ev ? ev : gev.ptr() ) {
     // read entries in /etc/resolv.conf
     std::ifstream f( "/etc/resolv.conf" );
     if ( ! f ) {
-        perror( "Pb opening /etc/resolv.conf" );
+        ev->err( "Pb opening /etc/resolv.conf", strerror( errno ) );
         abort();
     }
 
@@ -40,17 +50,22 @@ Dns::Dns( EvLoop *ev ) : cur_server( 0 ), ev( ev ? ev : gev.ptr() ) {
             const char *b = d += 11;
             while ( d < e && is_a_curl( *d ) )
                 ++d;
-            server_ips.emplace_back( b, d );
+            server_ips.emplace_back( std::string( b, d ), 53 );
         }
     }
+
     if ( server_ips.empty() ) {
-        std::cerr << "/etc/resolv.conf seems to be empty" << std::endl;
-        abort();
+        ev->err( "/etc/resolv.conf seems to be empty" );
     }
 
     // open a socket
     socket = new DnsClientSocket( this );
     *this->ev << socket;
+}
+
+Dns::~Dns() {
+    if ( req )
+        free( req );
 }
 
 void Dns::query( const std::string &addr, std::function<void (int, const std::vector<InetAddress> &)> cb ) {
@@ -59,7 +74,7 @@ void Dns::query( const std::string &addr, std::function<void (int, const std::ve
     if ( iter_entries != cached_entries.end() )
         return cb( 0, iter_entries->second.ip_addrs );
 
-    // IMPORTANT_TODO: try several servers, add timeout !!
+    // we already have a pending request for this addr ?
     std::map<std::string,Wcb>::iterator iter_waiting = waiting_reqs.find( addr );
     if ( iter_waiting != waiting_reqs.end() ) {
         iter_waiting->second.cbs.push_back( cb );
@@ -67,22 +82,28 @@ void Dns::query( const std::string &addr, std::function<void (int, const std::ve
     }
 
     // else, make a query
-    if ( server_ips.empty() )
-        return cb( NO_RESOLV_ENTRY, {} );
-    BinStream<DnsConnection> bs( socket->connection( { server_ips[ cur_server ], 53 } ) );
+    if ( ! req ) req = (char *)malloc( max_req_size );
+    CmQueue cm( req, req + max_req_size );
+    BinStream<CmQueue> bs( &cm );
+    // socket->connection( { server_ips[ cur_server ], 53 } )
 
     // make a num_request
     static Random rand;
-    unsigned num_request = 0;
+    PI16 num_request = 0;
     rand.get( &num_request, 2 );
+
+    // reg callback
+    Wcb &wcb = waiting_reqs[ addr ];
+    wcb.cbs.push_back( cb );
+    wcb.num = num_request;
 
     // header
     bs.write_be16( num_request ); // num_request
-    bs.write_byte( ( 1 << 0 ) + // recursivity
-                   ( 0 << 1 ) + // truncated msg
-                   ( 0 << 2 ) + // authoritative answer
-                   ( 0 << 3 ) + // type ( -> std request )
-                   ( 0 << 7 ) );  // answer ? )
+    bs.write_byte( ( 1 << 0 ) +  // recursivity
+                   ( 0 << 1 ) +  // truncated msg
+                   ( 0 << 2 ) +  // authoritative answer
+                   ( 0 << 3 ) +  // type ( -> std request )
+                   ( 0 << 7 ) ); // answer ? )
     bs.write_byte( 0x00 ); // !RA, Z=000, RCODE=NOERROR(0000)
     bs.write_be16( 1 ); // QDCOUNT
     bs.write_be16( 0 ); // ANCOUNT
@@ -90,7 +111,7 @@ void Dns::query( const std::string &addr, std::function<void (int, const std::ve
     bs.write_be16( 0 ); // ARCOUNT
 
     // question
-    for( const char *b = addr.data(), *e = b; ; ++e ) { // QNAME
+    for( const char *b = addr.c_str(), *e = b; ; ++e ) { // QNAME
         if ( *e == '.' or *e == '@' or *e == 0 ) {
             if ( e - b ) {
                 bs.write_byte( e - b );
@@ -106,12 +127,117 @@ void Dns::query( const std::string &addr, std::function<void (int, const std::ve
     bs.write_be16( 0xFF ); /* QTYPE (any) */
     bs.write_be16( 0x01 ); /* QCLASS (internet) */
 
-    bs.flush();
+    // send
+    if ( server_ips.empty() ) return cb( NO_RESOLV_ENTRY, {} );
+    socket->send( server_ips[ 0 ], &req, cm.size(), true );
+}
+
+void Dns::ans( const char *data, size_t size ) {
+    // header
+    CmString cm( data, data + size );
+    BinStream<CmString> bs( &cm );
+    unsigned num_request  = bs.read_be16();
+    unsigned flags_0      = bs.read_byte(); // flags 0
+    unsigned flags_1      = bs.read_byte(); // flags 1
+    unsigned nb_questions = bs.read_be16(); // QDCOUNT
+    unsigned nb_answers   = bs.read_be16(); // ANCOUNT
+    unsigned nb_domauth   = bs.read_be16(); // NSCOUNT
+    unsigned nb_addsect   = bs.read_be16(); // ARCOUNT
+    if ( 0 )
+        P( flags_0, flags_1 );
+
+    // questions
+    Dns::Entry *entry = 0;
+    Dns::Wcb   *wcb   = 0;
+    while ( nb_questions-- ) {
+        std::string name   = read_cname( bs );
+        unsigned    qtype  = bs.read_be16();
+        unsigned    qclass = bs.read_be16();
+        if ( qtype == 255 && qclass == 1 && ! check_name( entry, wcb, num_request, name ) )
+            return;
+    }
+
+    // answers
+    for( unsigned na = nb_answers + nb_domauth + nb_addsect * 0; na--; ) {
+        std::string name;
+        unsigned c = bs.read_byte();
+        if ( c >= 128 + 64 ) { // pointer format
+            c = ( ( c - ( 128 + 64 ) ) << 8 ) + bs.read_byte();
+            CmString nc( data + std::min( c, unsigned( size ) ), data + size );
+            name = read_cname( &nc );
+        } else { // CNAME format
+            name = read_cname( bs );
+        }
+
+        unsigned type   = bs.read_be16();
+        unsigned qclass = bs.read_be16();
+        unsigned ttl    = bs.read_be32();
+        unsigned rlen   = bs.read_be16();
+
+        if ( type == 0x01 and rlen == 4 ) { // A
+            if ( qclass == 1 and not check_name( entry, wcb, num_request, name ) )
+                return;
+            PI8 ip[ 4 ];
+            entry->ttl = ttl;
+            bs.read_some( ip, 4 );
+            entry->ip_addrs.emplace_back( ip, 0 );
+        } else if ( type == 28 and rlen == 16 ) { // AAAA
+            if ( qclass == 1 and not check_name( entry, wcb, num_request, name ) )
+                return;
+            PI16 ip[ 8 ];
+            entry->ttl = ttl;
+            bs.read_some( ip, 16 );
+            entry->ip_addrs.emplace_back( ip, 0 );
+        } else
+            bs.skip_some( rlen );
+    }
+
+    // callbacks
+    if ( wcb ) {
+        for( std::function<void( int err, const std::vector<InetAddress> &addr )> &f : wcb->cbs )
+            f( 0, entry->ip_addrs );
+        waiting_reqs.erase( entry->name );
+    }
+}
+
+std::string Dns::read_cname( BinStream<CmString> bs ) {
+    std::string name;
+    while ( true ) {
+        unsigned c = bs.read_byte();
+        if ( not bs.buf->ack_read_some( c ) ) {
+            ev->err( "Pb with DNS lookup (reading name in answers)" );
+            return "";
+        }
+        if ( not c )
+            break;
+        if ( name.size() )
+            name += '.';
+        name += std::string( bs.ptr(), bs.ptr() + c );
+        bs.skip_some( c );
+    }
+    return name;
+}
+
+bool Dns::check_name( Entry *&entry, Wcb *&wcb, unsigned num_request, const std::string name ) {
+    //
+    if ( entry )
+        return entry->name == name;
 
     //
-    Wcb &wcb = waiting_reqs[ addr ];
-    wcb.num.push_back( num_request );
-    wcb.cbs.push_back( cb );
+    std::map<std::string,Dns::Wcb>::iterator iter = waiting_reqs.find( name );
+    if ( iter == waiting_reqs.end() ) {
+        ev->log( "Unrequested dns info (can be a late answer for instance)" );
+        return false;
+    }
+    wcb = &iter->second;
+    if ( wcb->num != num_request ) {
+        ev->log( "Dns num_request answer is not correct (it is an attack ?)" );
+        return false;
+    }
+
+    entry = &cached_entries[ name ];
+    entry->name = name;
+    return true;
 }
 
 } // namespace Evel
