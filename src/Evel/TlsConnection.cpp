@@ -1,4 +1,4 @@
-#include "SslConnection.h"
+#include "TlsConnection.h"
 #include <openssl/err.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -9,15 +9,15 @@
 
 namespace Evel {
 
-SslConnection::SslConnection( SSL_CTX *ssl_ctx, const InetAddress &addr, const char *pref_ciph ) : TcpConnection( addr ), comm_mode( CommMode::Client ) {
+TlsConnection::TlsConnection( SSL_CTX *ssl_ctx, const InetAddress &addr, const char *pref_ciph ) : TcpConnection( addr ), comm_mode( CommMode::Client ) {
     _init( ssl_ctx, pref_ciph );
 }
 
-SslConnection::SslConnection( SSL_CTX *ssl_ctx, int accepting_fd, const char *pref_ciph ) : TcpConnection( accepting_fd ), comm_mode( CommMode::Server ) {
+TlsConnection::TlsConnection( SSL_CTX *ssl_ctx, int accepting_fd, const char *pref_ciph ) : TcpConnection( accepting_fd ), comm_mode( CommMode::Server ) {
     _init( ssl_ctx, pref_ciph );
 }
 
-void SslConnection::_init( SSL_CTX *ssl_ctx, const char *pref_ciph ) {
+void TlsConnection::_init( SSL_CTX *ssl_ctx, const char *pref_ciph ) {
     to_redo              = ToRedo::Nothing;
     want_a_shutdown      = false;
     started_a_shutdown   = false;
@@ -41,15 +41,15 @@ void SslConnection::_init( SSL_CTX *ssl_ctx, const char *pref_ciph ) {
 }
 
 
-SslConnection::SslConnection( VtableOnly vo ) : TcpConnection( vo ) {
+TlsConnection::TlsConnection( VtableOnly vo ) : TcpConnection( vo ) {
 }
 
-SslConnection::~SslConnection() {
+TlsConnection::~TlsConnection() {
     if ( ssl )
         SSL_free( ssl );
 }
 
-void SslConnection::send( const char **data, size_t size, size_t rese, bool allow_transfer_ownership ) {
+void TlsConnection::send( const char **data, size_t size, size_t rese, bool allow_transfer_ownership ) {
     if ( size == 0 || has_error || want_close_fd || want_a_shutdown || next_del )
         return;
 
@@ -89,7 +89,7 @@ void SslConnection::send( const char **data, size_t size, size_t rese, bool allo
     }
 }
 
-void SslConnection::close() {
+void TlsConnection::close() {
     if ( has_error || want_a_shutdown )
         return;
     want_a_shutdown = true;
@@ -101,7 +101,7 @@ void SslConnection::close() {
     }
 }
 
-void SslConnection::ssl_error( unsigned long err, const char *context ) {
+void TlsConnection::ssl_error( unsigned long err, const char *context ) {
     if( const char *str = ERR_reason_error_string( err ) )
         ssl_error( str, context );
     else {
@@ -110,13 +110,13 @@ void SslConnection::ssl_error( unsigned long err, const char *context ) {
     }
 }
 
-void SslConnection::ssl_error( const char *msg, const char *context ) {
+void TlsConnection::ssl_error( const char *msg, const char *context ) {
     ev_loop->err( msg, context );
     has_error = true;
     close_fd();
 }
 
-void SslConnection::on_inp() {
+void TlsConnection::on_inp() {
     if ( has_error )
         return;
 
@@ -152,7 +152,7 @@ void SslConnection::on_inp() {
     }
 }
 
-void SslConnection::on_out() {
+void TlsConnection::on_out() {
     if ( has_error )
         return;
 
@@ -195,7 +195,7 @@ void SslConnection::on_out() {
     }
 }
 
-void SslConnection::_redo() {
+void TlsConnection::_redo() {
     ToRedo tr = to_redo;
     to_redo = ToRedo::Nothing;
 
@@ -208,7 +208,7 @@ void SslConnection::_redo() {
     }
 }
 
-void SslConnection::_handshake() {
+void TlsConnection::_handshake() {
     while ( true ) {
         int ruff = SSL_do_handshake( ssl );
 
@@ -240,7 +240,7 @@ void SslConnection::_handshake() {
     }
 }
 
-void SslConnection::_shutdown() {
+void TlsConnection::_shutdown() {
     // std::cout << fcntl(fd, F_GETFD) << ", " << errno << std::endl;
 
     while ( true ) {
@@ -275,7 +275,7 @@ void SslConnection::_shutdown() {
     }
 }
 
-void SslConnection::_write() {
+void TlsConnection::_write() {
     while ( ! waiting_sends.empty() ) {
         SendItem &si = waiting_sends.front();
         int ruff = SSL_write( ssl, si.data, si.size );
@@ -307,7 +307,7 @@ void SslConnection::_write() {
     }
 }
 
-void SslConnection::_read() {
+void TlsConnection::_read() {
     while ( true ) {
         // try to find the message length (based on ciphered string)
         unsigned buff_size, max_buff_size = 1u << 20;

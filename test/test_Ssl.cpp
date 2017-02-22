@@ -1,4 +1,4 @@
-#include "../src/Evel/SslConnection_WF.h"
+#include "../src/Evel/TlsConnection_WF.h"
 #include "../src/Evel/Listener_WF.h"
 #include "../src/Evel/Timer_WF.h"
 #include "../src/Evel/SslCtx.h"
@@ -40,8 +40,8 @@ TEST( Ssl, server_and_client ) {
     // echo server
     auto *listener = new Listener_WF( 5424, /* block_the_loop */ false );
     listener->f_connection = [ &ssl_ctx_server ]( Listener_WF *l, int fd, const InetAddress &addr ) {
-        auto *conn_server = new SslConnection_WF( ssl_ctx_server, fd );
-        conn_server->f_parse = []( SslConnection_WF *c, char **data, size_t size, size_t rese ) {
+        auto *conn_server = new TlsConnection_WF( ssl_ctx_server, fd );
+        conn_server->f_parse = []( TlsConnection_WF *c, char **data, size_t size, size_t rese ) {
             c->send( *data, size );
             c->close();
         };
@@ -55,8 +55,8 @@ TEST( Ssl, server_and_client ) {
 
     // client
     // system( "curl --insecure https://localhost:5424 &" );
-    auto *conn_client = new SslConnection_WF( ssl_ctx_client, { "127.0.0.1", 5424 } );
-    conn_client->f_parse = [&]( SslConnection_WF *c, char **data, size_t size, size_t rese ) {
+    auto *conn_client = new TlsConnection_WF( ssl_ctx_client, { "127.0.0.1", 5424 } );
+    conn_client->f_parse = [&]( TlsConnection_WF *c, char **data, size_t size, size_t rese ) {
         msg.append( *data, size );
         c->close();
     };

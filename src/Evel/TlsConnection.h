@@ -17,12 +17,12 @@ namespace Evel {
 /**
   Prop: if failure on output, we wait for the next output to redo the same stuff. If input, we mark
 */
-class SslConnection : public TcpConnection {
+class TlsConnection : public TcpConnection {
 public:
-    SslConnection( SSL_CTX *ssl_ctx, const InetAddress &addr, const char *pref_ciph = PREF_CIPHER_EVEL ); ///< client mode
-    SslConnection( SSL_CTX *ssl_ctx, int accepting_fd, const char *pref_ciph = PREF_CIPHER_EVEL );        ///< accepting (server) mode
-    SslConnection( VtableOnly ); ///< a constructor that does not assign any attribute (else than the vtable). Permits to do a new( ptr ) T to change _only_ the vtable (underlying type)
-    ~SslConnection();
+    TlsConnection( SSL_CTX *ssl_ctx, const InetAddress &addr, const char *pref_ciph = PREF_CIPHER_EVEL ); ///< client mode
+    TlsConnection( SSL_CTX *ssl_ctx, int accepting_fd, const char *pref_ciph = PREF_CIPHER_EVEL );        ///< accepting (server) mode
+    TlsConnection( VtableOnly ); ///< a constructor that does not assign any attribute (else than the vtable). Permits to do a new( ptr ) T to change _only_ the vtable (underlying type)
+    ~TlsConnection();
 
     using TcpConnection::send;
     virtual void  send          ( const char **data, size_t size, size_t rese = 0, bool allow_transfer_ownership = true ); ///< if transfer_ownership is allowed, send may take ownership of *data, in which case, *data is changed to null and will be freed using free(). return value is relevant only if it's for a retry
