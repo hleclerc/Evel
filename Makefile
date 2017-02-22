@@ -1,5 +1,5 @@
 all: # test
-	nsmake --very-verbose gtest -g3 test/test_Dtls.cpp
+	nsmake gtest -g3 test/test_Buffers.cpp
 
 test:
 	nsmake gtest -g3 test/test_*.cpp

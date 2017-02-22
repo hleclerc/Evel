@@ -69,7 +69,7 @@ TEST( Udp, DTLS_rdy_send ) {
     EXPECT_EQ( res, "smurf" );
 }
 
- TEST( Udp, DTLS_imm_send ) {
+TEST( Udp, DTLS_imm_send ) {
      SslCtx ssl_ctx_server( SslCtx::Method::DTLSv1, "test/cert.pem", "test/key.pem" );
      SslCtx ssl_ctx_client( SslCtx::Method::DTLSv1, false );
      int nb_closed = 0;

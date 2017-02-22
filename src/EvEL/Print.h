@@ -5,8 +5,19 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <vector>
 
 namespace Evel {
+
+template<class T>
+std::ostream &operator<<( std::ostream &os, const std::vector<T> &val ) {
+    if ( ! val.empty() ) {
+        os << val[ 0 ];
+        for( unsigned i = 1; i < val.size(); ++i )
+            os << " " << val[ i ];
+    }
+    return os;
+}
 
 /// classes with `write_to_stream` will be displayed by default with the corresponding methods
 template<class T>
@@ -35,6 +46,13 @@ template<class OS,class T0,class... Args> void __my_print( OS &os, const T0 &t0,
     #define PF( ... ) \
         __my_print( std::cout << __PRETTY_FUNCTION__ << ": " << #__VA_ARGS__ " -> ", __VA_ARGS__ );
 #endif
+
+template<class T>
+std::string to_string( const T &val ) {
+    std::ostringstream ss;
+    ss << val;
+    return ss.str();
+}
 
 template<class T>
 std::string to_string_hex( const T &val ) {
