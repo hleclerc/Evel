@@ -4,6 +4,7 @@
 #include "../Containers/RcPtr.h"
 
 #include <stdlib.h>
+#include <new>
 
 namespace Evel {
 
@@ -11,16 +12,15 @@ namespace Evel {
 */
 class SharedBuffer {
 public:
-    enum { default_size = 2048 - 3 * sizeof( unsigned ) - sizeof( SharedBuffer * ) };
+    enum { default_size = 2048 - 3 * sizeof( unsigned ) - sizeof( SharedBuffer * ), nb = 4 };
+
+    SharedBuffer( unsigned used, unsigned rese, SharedBuffer *prev = 0 ) : cpt_use( 0 ), used( used ), next( 0 ), rese( rese ) {
+        if ( prev )
+            prev->next = this;
+    }
 
     static SharedBuffer *New( unsigned size = default_size, SharedBuffer *prev = 0 ) {
-        SharedBuffer *res = (SharedBuffer *)malloc( sizeof( SharedBuffer ) + size - 4 );
-        if ( prev ) prev->next = res;
-        res->cpt_use = 0;
-        res->used    = 0;
-        res->next    = 0;
-        res->size    = size;
-        return res;
+        return new ( malloc( sizeof( SharedBuffer ) - nb + size ) ) SharedBuffer( 0, size, prev );
     }
 
     static void operator delete( void *ptr ) {
@@ -28,7 +28,7 @@ public:
     }
 
     unsigned room() const {
-        return size - used;
+        return rese - used;
     }
 
     PT cum_size() const {
@@ -38,12 +38,28 @@ public:
        return res;
     }
 
+    const PI8 *begin() const {
+        return data;
+    }
+
+    PI8 *begin() {
+        return data;
+    }
+
+    const PI8 *end() const {
+        return data + used;
+    }
+
+    PI8 *end() {
+        return data + used;
+    }
+
     // attributes
-    mutable int   cpt_use;   ///< destroyed if < 0
-    unsigned      used;      ///< nb items stored in data
-    SharedBuffer *next;      ///<
-    unsigned      size;      ///< real size of data[]
-    PI8           data[ 4 ]; ///<
+    mutable int   cpt_use;    ///< destroyed if < 0
+    unsigned      used;       ///< nb items stored in data
+    SharedBuffer *next;       ///<
+    unsigned      rese;       ///< real size of data[]
+    PI8           data[ nb ]; ///<
 };
 
 }

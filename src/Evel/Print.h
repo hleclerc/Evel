@@ -32,19 +32,19 @@ template<class OS,class T0,class... Args> void __my_print( OS &os, const T0 &t0,
 
 #ifndef P
     #define P( ... ) \
-        __my_print( std::cout << #__VA_ARGS__ " -> ", __VA_ARGS__ );
+        Evel::__my_print( std::cout << #__VA_ARGS__ " -> ", __VA_ARGS__ );
     #define I( info, ... ) \
-        __my_print( std::cout << info << " ", ##__VA_ARGS__ );
+        Evel::__my_print( std::cout << info << " ", ##__VA_ARGS__ );
     #define PE( ... ) \
-        __my_print( std::cerr << #__VA_ARGS__ " -> ", __VA_ARGS__ );
+        Evel::__my_print( std::cerr << #__VA_ARGS__ " -> ", __VA_ARGS__ );
     #define PN( ... ) \
-        __my_print( std::cout << #__VA_ARGS__ " ->\n", __VA_ARGS__ );
+        Evel::__my_print( std::cout << #__VA_ARGS__ " ->\n", __VA_ARGS__ );
     #define PL( ... ) \
-        __my_print( std::cout << __FILE__ << ":" << __LINE__ << ": " << #__VA_ARGS__ " -> ", __VA_ARGS__ );
+        Evel::__my_print( std::cout << __FILE__ << ":" << __LINE__ << ": " << #__VA_ARGS__ " -> ", __VA_ARGS__ );
     #define PLE( ... ) \
-        __my_print( std::cerr << __FILE__ << ":" << __LINE__ << ": " << #__VA_ARGS__ " -> ", __VA_ARGS__ );
+        Evel::__my_print( std::cerr << __FILE__ << ":" << __LINE__ << ": " << #__VA_ARGS__ " -> ", __VA_ARGS__ );
     #define PF( ... ) \
-        __my_print( std::cout << __PRETTY_FUNCTION__ << ": " << #__VA_ARGS__ " -> ", __VA_ARGS__ );
+        Evel::__my_print( std::cout << __PRETTY_FUNCTION__ << ": " << #__VA_ARGS__ " -> ", __VA_ARGS__ );
 #endif
 
 template<class T>

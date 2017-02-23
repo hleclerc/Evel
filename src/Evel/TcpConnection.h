@@ -16,9 +16,9 @@ public:
     TcpConnection( VtableOnly );              ///< a constructor that does not assign any attribute (else than the vtable). Permits to do a new( ptr ) T to change _only_ the vtable (underlying type)
     ~TcpConnection();
 
-    void          send            ( const char *data );  ///< simplified version. data will be copied if send has actually to be postponed
-    void          send            ( const char *data, size_t size ); ///< simplified version. data will be copied if send has actually to be postponed
-    virtual void  send            ( const char **data, size_t size, size_t rese = 0, bool allow_transfer_ownership = true ); ///< if transfer_ownership is allowed, send may take ownership of *data, in which case, *data is changed to null and will be freed using free(). return value is relevant only if it's for a retry
+    void             send         ( const char *data );  ///< simplified version. data will be copied if send has actually to be postponed
+    void             send         ( const char *data, size_t size ); ///< simplified version. data will be copied if send has actually to be postponed
+    virtual void     send         ( const char **data, size_t size, size_t rese = 0, bool allow_transfer_ownership = true ); ///< if transfer_ownership is allowed, send may take ownership of *data, in which case, *data is changed to null and will be freed using free(). return value is relevant only if it's for a retry
 
 protected:
     struct SendItem { const char *data, *allo; size_t size, rese; };
@@ -26,6 +26,7 @@ protected:
     using DC = std::deque<SendItem>;
 
     virtual void     parse        ( char **data, size_t size, size_t rese ) = 0; ///< data can be modified to become owned (by default, buffer comes from a malloc, modifiable with `allocate`)
+    virtual size_t   offset_parse () const; ///< enable to have a data header.
 
     virtual void     on_inp       () override;
     virtual void     on_out       () override;

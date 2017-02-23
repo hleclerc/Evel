@@ -323,18 +323,19 @@ void TlsConnection::_read() {
         }
 
         // if no available inp_buffer or if size is not high enough, create a new one
+        size_t off = offset_parse();
         if ( ! inp_buffer ) {
-            inp_buffer = (char *)msg_alloc( buff_size );
+            inp_buffer = (char *)msg_alloc( off + buff_size );
             inp_buffer_size = buff_size;
         } else if ( inp_buffer_size < buff_size ) {
             msg_free( inp_buffer );
-            inp_buffer = (char *)msg_alloc( buff_size );
+            inp_buffer = (char *)msg_alloc( off + buff_size );
             inp_buffer_size = buff_size;
         }
 
         // read some data
         while ( true ) {
-            int ruff = SSL_read( ssl, inp_buffer, inp_buffer_size );
+            int ruff = SSL_read( ssl, off + inp_buffer, inp_buffer_size );
 
             // error/OK cases
             switch ( SSL_get_error( ssl, ruff ) ) {

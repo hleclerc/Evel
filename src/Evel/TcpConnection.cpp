@@ -83,6 +83,10 @@ void TcpConnection::send( const char **data, size_t size, size_t rese, bool allo
     }
 }
 
+size_t TcpConnection::offset_parse() const {
+    return 0;
+}
+
 void TcpConnection::add_send_item( const char **data, size_t size, size_t rese, bool allow_transfer_ownership ) {
     if ( size ) {
         if ( allow_transfer_ownership ) {
@@ -120,17 +124,18 @@ void TcpConnection::on_inp() {
         }
 
         // if no available inp_buffer or if size is not high enough, create a new one
+        size_t off = offset_parse();
         if ( ! inp_buffer ) {
-            inp_buffer = (char *)msg_alloc( buff_size );
+            inp_buffer = (char *)msg_alloc( off + buff_size );
             inp_buffer_size = buff_size;
         } else if ( inp_buffer_size < buff_size ) {
             msg_free( inp_buffer );
-            inp_buffer = (char *)msg_alloc( buff_size );
+            inp_buffer = (char *)msg_alloc( off + buff_size );
             inp_buffer_size = buff_size;
         }
 
         // try to read some data
-        ssize_t used = recv( fd, inp_buffer, inp_buffer_size, MSG_DONTWAIT );
+        ssize_t used = recv( fd, off + inp_buffer, inp_buffer_size, MSG_DONTWAIT );
         if ( used <= 0 ) {
             if ( errno == EINTR )
                 continue;
