@@ -60,8 +60,8 @@ void Dns::query( const std::string &addr, std::function<void (int, const std::ve
 
     // else, make a query
     if ( ! req ) req = (char *)malloc( max_req_size );
-    CmQueue cm( req, req + max_req_size );
-    BinStream<CmQueue> bs( &cm );
+    Hpipe::CmQueue cm( req, req + max_req_size );
+    Hpipe::BinStream<Hpipe::CmQueue> bs( &cm );
     // socket->connection( { server_ips[ cur_server ], 53 } )
 
     // make a num_request
@@ -124,8 +124,8 @@ void Dns::query( const std::string &addr, std::function<void (int, const std::ve
 
 void Dns::ans( const char *data, size_t size ) {
     // header
-    CmString cm( data, data + size );
-    BinStream<CmString> bs( &cm );
+    Hpipe::CmString cm( data, data + size );
+    Hpipe::BinStream<Hpipe::CmString> bs( &cm );
     unsigned num_request  = bs.read_be16();
     unsigned flags_0      = bs.read_byte(); // flags 0
     unsigned flags_1      = bs.read_byte(); // flags 1
@@ -153,7 +153,7 @@ void Dns::ans( const char *data, size_t size ) {
         unsigned c = bs.read_byte();
         if ( c >= 128 + 64 ) { // pointer format
             c = ( ( c - ( 128 + 64 ) ) << 8 ) + bs.read_byte();
-            CmString nc( data + std::min( c, unsigned( size ) ), data + size );
+            Hpipe::CmString nc( data + std::min( c, unsigned( size ) ), data + size );
             name = read_cname( &nc );
         } else { // CNAME format
             name = read_cname( bs );
@@ -190,7 +190,7 @@ void Dns::ans( const char *data, size_t size ) {
     }
 }
 
-std::string Dns::read_cname( BinStream<CmString> bs ) {
+std::string Dns::read_cname( Hpipe::BinStream<Hpipe::CmString> bs ) {
     std::string name;
     while ( true ) {
         unsigned c = bs.read_byte();

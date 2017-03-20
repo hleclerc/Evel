@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Stream/BinStream.h"
 #include "InetAddress.h"
 #include "EvLoop.h"
+#include <Hpipe/BinStream.h>
 #include <functional>
 #include <vector>
 #include <string>
@@ -53,7 +53,7 @@ protected:
 
     void                        ans             ( const char *data, size_t size );
     bool                        check_name      ( Entry *&entry, Wcb *&wcb, unsigned num_request, const std::string name );
-    std::string                 read_cname      ( BinStream<CmString> bs );
+    std::string                 read_cname      ( Hpipe::BinStream<Hpipe::CmString> bs );
     void                        read_resolv_conf();
 
     std::map<std::string,Entry> cached_entries;   ///<

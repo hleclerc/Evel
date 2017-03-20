@@ -34,8 +34,8 @@ protected:
 
     void             add_send_item( const char **data, size_t size, size_t rese, bool allow_transfer_ownership );
 
-    virtual void    *msg_alloc    ( size_t size );
-    virtual void     msg_free     ( const void *ptr );
+    virtual void    *msg_alloc    ( size_t &size );     ///< do a malloc by default
+    virtual void     msg_free     ( const void *ptr ); ///< do a free by default
 
     bool             waiting_for_connection;
     unsigned         inp_buffer_size; ///< room reserved in buffer

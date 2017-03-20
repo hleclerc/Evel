@@ -93,14 +93,16 @@ void TcpConnection::add_send_item( const char **data, size_t size, size_t rese, 
             waiting_sends.emplace_back( SendItem{ *data, *data, size, rese } );
             data = 0;
         } else {
-            char *n_data = (char *)msg_alloc( size );
+            rese = size;
+            char *n_data = (char *)msg_alloc( rese );
             memcpy( n_data, *data, size );
             waiting_sends.emplace_back( SendItem{ n_data, n_data, size, rese } );
         }
     }
 }
 
-void *TcpConnection::msg_alloc( size_t size ) {
+void *TcpConnection::msg_alloc( size_t &size ) {
+    size = ( size + 7 ) & ~7;
     return malloc( size );
 }
 
@@ -124,14 +126,14 @@ void TcpConnection::on_inp() {
         }
 
         // if no available inp_buffer or if size is not high enough, create a new one
-        size_t off = offset_parse();
+        size_t off = offset_parse(), rese = off + buff_size;
         if ( ! inp_buffer ) {
-            inp_buffer = (char *)msg_alloc( off + buff_size );
-            inp_buffer_size = buff_size;
-        } else if ( inp_buffer_size < buff_size ) {
+            inp_buffer = (char *)msg_alloc( rese );
+            inp_buffer_size = rese - off;
+        } else if ( buff_size > inp_buffer_size ) {
             msg_free( inp_buffer );
-            inp_buffer = (char *)msg_alloc( off + buff_size );
-            inp_buffer_size = buff_size;
+            inp_buffer = (char *)msg_alloc( rese );
+            inp_buffer_size = rese - off;
         }
 
         // try to read some data

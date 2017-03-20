@@ -323,14 +323,14 @@ void TlsConnection::_read() {
         }
 
         // if no available inp_buffer or if size is not high enough, create a new one
-        size_t off = offset_parse();
+        size_t off = offset_parse(), rese = off + buff_size;
         if ( ! inp_buffer ) {
-            inp_buffer = (char *)msg_alloc( off + buff_size );
-            inp_buffer_size = buff_size;
+            inp_buffer = (char *)msg_alloc( rese );
+            inp_buffer_size = rese - off;
         } else if ( inp_buffer_size < buff_size ) {
             msg_free( inp_buffer );
-            inp_buffer = (char *)msg_alloc( off + buff_size );
-            inp_buffer_size = buff_size;
+            inp_buffer = (char *)msg_alloc( rese );
+            inp_buffer_size = rese - off;
         }
 
         // read some data
