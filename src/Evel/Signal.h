@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Event.h"
+#include <signal.h>
 
 namespace Evel {
 

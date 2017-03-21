@@ -35,6 +35,9 @@ void Event::close() {
 }
 
 void Event::close_fd() {
+    if ( has_error )
+        return del();
+
     if ( want_close_fd )
         return;
     want_close_fd = true;
@@ -48,7 +51,7 @@ void Event::del() {
     if ( ev_loop ) {
         // fd still has data to send ?
         size_t pending = 0;
-        if ( fd >= 0 && may_have_out() && ioctl( fd, SIOCOUTQ, &pending ) )
+        if ( fd >= 0 && has_error == false && may_have_out() && ioctl( fd, SIOCOUTQ, &pending ) )
             ev_loop->err( "ioctl SIOCOUTQ (in the main event loop): ", strerror( errno ) );
 
         // register in the right list

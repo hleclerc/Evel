@@ -18,10 +18,13 @@ TlsConnection::TlsConnection( SSL_CTX *ssl_ctx, int accepting_fd, const char *pr
 }
 
 void TlsConnection::_init( SSL_CTX *ssl_ctx, const char *pref_ciph ) {
-    to_redo              = ToRedo::Nothing;
-    want_a_shutdown      = false;
-    started_a_shutdown   = false;
-    has_waiting_inp_data = false;
+    to_redo                        = ToRedo::Nothing;
+    read_timeout                   = 10;
+    handshake_done                 = false;
+    want_a_shutdown                = false;
+    started_a_shutdown             = false;
+    has_waiting_inp_data           = false;
+    allow_self_signed_certificates = false;
 
     ssl = SSL_new( ssl_ctx );
     SSL_set_fd( ssl, fd );
@@ -63,28 +66,31 @@ void TlsConnection::send( const char **data, size_t size, size_t rese, bool allo
         switch ( SSL_get_error( ssl, ruff ) ) {
         case SSL_ERROR_NONE:
             // no partial write => nothing to do
+            to_redo  = ToRedo::Nothing;
             break;
         case SSL_ERROR_WANT_READ:
             add_send_item( data, size, rese, allow_transfer_ownership );
-
-            wanted_direction = Direction::Inp;
-            to_redo          = ToRedo::Write;
+            ev_loop->add_timeout( this, read_timeout );
+            redo_dir = Direction::Inp;
+            to_redo  = ToRedo::Write;
             return;
         case SSL_ERROR_WANT_WRITE:
             add_send_item( data, size, rese, allow_transfer_ownership );
-
-            wanted_direction = Direction::Out;
-            to_redo          = ToRedo::Write;
+            redo_dir = Direction::Out;
+            to_redo  = ToRedo::Write;
             return;
         case SSL_ERROR_ZERO_RETURN:
             return on_rd_hup();
         case SSL_ERROR_SYSCALL:
             if ( errno == EINTR )
                 continue;
+            if ( errno == 0 )
+                break;
             return sys_error();
         default:
             return ssl_error( ERR_get_error() );
         }
+
         break;
     }
 }
@@ -117,11 +123,12 @@ void TlsConnection::ssl_error( const char *msg, const char *context ) {
 }
 
 void TlsConnection::on_inp() {
+    ev_loop->rem_timeout( this );
     if ( has_error )
         return;
 
     if ( to_redo != ToRedo::Nothing ) {
-        if ( wanted_direction != Direction::Inp ) {
+        if ( redo_dir != Direction::Inp ) {
             has_waiting_inp_data = true;
             return;
         }
@@ -168,7 +175,7 @@ void TlsConnection::on_out() {
     }
 
     if ( to_redo != ToRedo::Nothing ) {
-        if ( wanted_direction != Direction::Out )
+        if ( redo_dir != Direction::Out )
             return;
 
         _redo();
@@ -196,10 +203,7 @@ void TlsConnection::on_out() {
 }
 
 void TlsConnection::_redo() {
-    ToRedo tr = to_redo;
-    to_redo = ToRedo::Nothing;
-
-    switch ( tr ) {
+    switch ( to_redo ) {
     case ToRedo::Nothing:   return;
     case ToRedo::Handshake: return _handshake();
     case ToRedo::Read:      return _read();
@@ -214,14 +218,16 @@ void TlsConnection::_handshake() {
 
         switch ( SSL_get_error( ssl, ruff ) ) {
         case SSL_ERROR_NONE:
+            to_redo  = ToRedo::Nothing;
             break;
         case SSL_ERROR_WANT_READ:
-            wanted_direction = Direction::Inp;
-            to_redo          = ToRedo::Handshake;
+            redo_dir = Direction::Inp;
+            to_redo  = ToRedo::Handshake;
+            ev_loop->add_timeout( this, read_timeout );
             return;
         case SSL_ERROR_WANT_WRITE:
-            wanted_direction = Direction::Out;
-            to_redo          = ToRedo::Handshake;
+            redo_dir = Direction::Out;
+            to_redo  = ToRedo::Handshake;
             return;
         case SSL_ERROR_ZERO_RETURN:
             return on_rd_hup();
@@ -241,22 +247,22 @@ void TlsConnection::_handshake() {
 }
 
 void TlsConnection::_shutdown() {
-    // std::cout << fcntl(fd, F_GETFD) << ", " << errno << std::endl;
-
     while ( true ) {
         int ruff = SSL_shutdown( ssl );
 
         switch ( SSL_get_error( ssl, ruff ) ) {
         case SSL_ERROR_NONE:
+            to_redo  = ToRedo::Nothing;
             close_fd();
             break;
         case SSL_ERROR_WANT_READ:
-            wanted_direction = Direction::Inp;
-            to_redo          = ToRedo::Shutdown;
+            redo_dir = Direction::Inp;
+            to_redo  = ToRedo::Shutdown;
+            ev_loop->add_timeout( this, read_timeout );
             return;
         case SSL_ERROR_WANT_WRITE:
-            wanted_direction = Direction::Out;
-            to_redo          = ToRedo::Shutdown;
+            redo_dir = Direction::Out;
+            to_redo  = ToRedo::Shutdown;
             return;
         case SSL_ERROR_ZERO_RETURN:
             return on_rd_hup();
@@ -285,14 +291,16 @@ void TlsConnection::_write() {
             // no partial write => we can completely remove si
             msg_free( si.allo );
             waiting_sends.pop_front();
+            to_redo  = ToRedo::Nothing;
             break;
         case SSL_ERROR_WANT_READ:
-            wanted_direction = Direction::Inp;
-            to_redo          = ToRedo::Write;
+            redo_dir = Direction::Inp;
+            to_redo  = ToRedo::Write;
+            ev_loop->add_timeout( this, read_timeout );
             return;
         case SSL_ERROR_WANT_WRITE:
-            wanted_direction = Direction::Out;
-            to_redo          = ToRedo::Write;
+            redo_dir = Direction::Out;
+            to_redo  = ToRedo::Write;
             return;
         case SSL_ERROR_ZERO_RETURN:
             return on_rd_hup();
@@ -335,26 +343,31 @@ void TlsConnection::_read() {
 
         // read some data
         while ( true ) {
-            int ruff = SSL_read( ssl, off + inp_buffer, inp_buffer_size );
+            int ruff = SSL_read( ssl, inp_buffer + off, inp_buffer_size );
 
             // error/OK cases
             switch ( SSL_get_error( ssl, ruff ) ) {
             case SSL_ERROR_NONE:
-                //            if ( ! handshake_done ) {
-                //                handshake_done = true;
-                //                if ( ! check_X509() )
-                //                    break;
-                //            }
+                if ( comm_mode == CommMode::Client && handshake_done == false ) {
+                    handshake_done = true;
+                    if ( ! check_X509() ) {
+                        has_error = true;
+                        close_fd();
+                        break;
+                    }
+                }
+                to_redo  = ToRedo::Nothing;
                 if ( want_close_fd == false && next_del == 0 && want_a_shutdown == false )
                     parse( &inp_buffer, ruff, inp_buffer_size );
                 break;
             case SSL_ERROR_WANT_READ:
-                wanted_direction = Direction::Inp;
-                to_redo          = ToRedo::Read;
+                redo_dir = Direction::Inp;
+                to_redo  = ToRedo::Read;
+                ev_loop->add_timeout( this, read_timeout );
                 return;
             case SSL_ERROR_WANT_WRITE:
-                wanted_direction = Direction::Out;
-                to_redo          = ToRedo::Read;
+                redo_dir = Direction::Out;
+                to_redo  = ToRedo::Read;
                 return;
             case SSL_ERROR_ZERO_RETURN:
                 return on_rd_hup(); // The TLS/SSL connection has been closed
@@ -375,27 +388,30 @@ void TlsConnection::_read() {
 }
 
 
-//bool SslConnection::check_X509() {
-//    // Step 1: verify a server certifcate was presented during negotiation
-//    // https://www.openssl.org/docs/ssl/SSL_get_peer_certificate.html
-//    X509 *cert = SSL_get_peer_certificate( ssl );
-//    if ( ! cert ) {
-//        ssl_error( ERR_get_error() ); // X509_V_ERR_APPLICATION_VERIFICATION
-//        return false;
-//    }
-//    X509_free( cert ); // Free immediately
+bool TlsConnection::check_X509() {
+    // Step 1: verify a server certifcate was presented during negotiation
+    // https://www.openssl.org/docs/ssl/SSL_get_peer_certificate.html
+    X509 *cert = SSL_get_peer_certificate( ssl );
+    if ( ! cert ) {
+        ssl_error( ERR_get_error() ); // X509_V_ERR_APPLICATION_VERIFICATION
+        return false;
+    }
+    X509_free( cert ); // Free immediately
 
-//    // Step 2: verify the result of chain verifcation
-//    // http://www.openssl.org/docs/ssl/SSL_get_verify_result.html
-//    // Error codes: http://www.openssl.org/docs/apps/verify.html
-//    if ( long res = SSL_get_verify_result( ssl ) ) {
-//        /* Hack a code into print_error_string. */
-//        ssl_error( res );
-//        return false;
-//    }
+    // Step 2: verify the result of chain verifcation
+    // http://www.openssl.org/docs/ssl/SSL_get_verify_result.html
+    // Error codes: http://www.openssl.org/docs/apps/verify.html
+    if ( long res = SSL_get_verify_result( ssl ) ) {
+        if ( res == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT && allow_self_signed_certificates )
+            return true;
+        /* Hack a code into print_error_string. */
+        std::string msg = "SSL_get_verify_result: " + std::to_string( res );
+        ssl_error( msg.c_str() );
+        return false;
+    }
 
-//    // seems to be OK
-//    return true;
-//}
+    // seems to be OK
+    return true;
+}
 
 } // namespace Evel

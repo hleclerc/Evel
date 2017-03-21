@@ -77,11 +77,10 @@ int EvLoop::run() {
                     ev->del();
             }
 
-            if ( events[ n ].events & EPOLLIN && ev->want_close_fd == false && ev->next_del == 0 ) // we have input data
-                ev->on_inp();
-
             if ( events[ n ].events & EPOLLRDHUP ) // end of the connection (gracefully closed by peer)
                 ev->on_rd_hup();
+            else if ( events[ n ].events & EPOLLIN && ev->want_close_fd == false && ev->next_del == 0 ) // we have input data
+                ev->on_inp();
 
             if ( events[ n ].events & EPOLLHUP ) // end of the connection
                 ev->on_hup();

@@ -56,6 +56,7 @@ TEST( Ssl, server_and_client ) {
     // client
     // system( "curl --insecure https://localhost:5424 &" );
     auto *conn_client = new TlsConnection_WF( ssl_ctx_client, { "127.0.0.1", 5424 } );
+    conn_client->allow_self_signed_certificates = true;
     conn_client->f_parse = [&]( TlsConnection_WF *c, char **data, size_t size, size_t rese ) {
         msg.append( *data, size );
         c->close();

@@ -15,7 +15,7 @@ public:
     using T::T;
 
 protected:
-    virtual void     on_parse_error() {}
+    virtual void     on_parse_error() { this->close(); }
     virtual unsigned parse         ( Hpipe::Buffer *buf, bool last_buf, const unsigned char *data = 0, const unsigned char *end_m1 = 0 ) = 0; ///< will be redefined by hpipe
 
 private:

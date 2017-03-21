@@ -27,7 +27,10 @@ public:
     using TcpConnection::send;
     virtual void  send          ( const char **data, size_t size, size_t rese = 0, bool allow_transfer_ownership = true ); ///< if transfer_ownership is allowed, send may take ownership of *data, in which case, *data is changed to null and will be freed using free(). return value is relevant only if it's for a retry
 
-    virtual void  close         (); ///< delete this after all the outputs has been seen. Initiate a SSL_shutdown
+    virtual void  close         ();               ///< delete this after all the outputs has been seen. Initiate a SSL_shutdown
+
+    bool          allow_self_signed_certificates; ///< false by default
+    double        read_timeout;                   ///< in seconds (5 by default)
 
 protected:
     /// states are mainly here for optimization (to avoid worthless system calls), because openssl seems to be able to somewhat manage states by itself
@@ -40,9 +43,10 @@ protected:
 
     virtual void  on_inp        () override;
     virtual void  on_out        () override;
+
     void          call_SSL_write();
     void          call_SSL_read ();
-    //    bool          check_X509    ();
+    bool          check_X509    ();
 
     void          _init         ( SSL_CTX *ssl_ctx, const char *pref_ciph );
     void          _handshake    ();
@@ -53,8 +57,9 @@ protected:
 
     SSL          *ssl;
     ToRedo        to_redo;
+    Direction     redo_dir;             ///< what ToRedo waits
     CommMode      comm_mode;
-    Direction     wanted_direction;     ///< what ToRedo waits
+    bool          handshake_done;
     bool          want_a_shutdown;      ///<
     bool          started_a_shutdown;   ///<
     bool          has_waiting_inp_data; ///< true if received a signal for a non waiting direction
