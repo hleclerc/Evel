@@ -1,3 +1,4 @@
+#include "../src/Evel/System/Print.h"
 #include "../src/Evel/Timer_WF.h"
 #include "../src/Evel/EvLoop.h"
 #include "../src/Evel/Dns.h"

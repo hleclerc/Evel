@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include "UdpSocket.h"
 #include "CiList.h"
+#include <memory>
 #include <atomic>
 
 namespace Evel {

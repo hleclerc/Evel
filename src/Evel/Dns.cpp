@@ -134,7 +134,7 @@ void Dns::ans( const char *data, size_t size ) {
     unsigned nb_domauth   = bs.read_be16(); // NSCOUNT
     unsigned nb_addsect   = bs.read_be16(); // ARCOUNT
     if ( 0 )
-        P( flags_0, flags_1 );
+        flags_0 += flags_1;
 
     // questions
     Dns::Entry *entry = 0;
